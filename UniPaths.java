@@ -6,8 +6,9 @@ public class UniPaths {
     private String startLocation;
     private String endLocation;
     private boolean isInMST ; // برای رنگ زرد
+    private boolean random;
 
-    UniPaths(int startTime, int endTime, int cost, int capacity, String startLocation, String endLocation) {
+    UniPaths(int startTime, int endTime, int cost, int capacity, String startLocation, String endLocation , boolean random) {
         this.startTime = startTime;
         this.endTime = endTime;
         this.cost = cost;
@@ -15,6 +16,15 @@ public class UniPaths {
         this.startLocation = startLocation;
         this.endLocation = endLocation;
         isInMST = false;
+        this.random = random;
+    }
+
+    public boolean isRandom() {
+        return random;
+    }
+
+    public void setRandom(boolean random) {
+        this.random = random;
     }
 
     public int getStartTime() {

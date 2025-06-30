@@ -17,7 +17,7 @@ public class GraphUtils {
             }
         }
         if (bestMatch != null) {
-            UniPaths autoPath = new UniPaths(0, 0, minCost, 0, newUni.getUniversityName(), bestMatch.getUniversityName());
+            UniPaths autoPath = new UniPaths(0, 0, minCost, 0, newUni.getUniversityName(), bestMatch.getUniversityName(), true);
             paths.add(autoPath);
         }
     }

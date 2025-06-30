@@ -22,7 +22,6 @@ public class main {
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
 
-        // صفحات اصلی
         mainPanel.add(createMainMenu(), "menu");
         mainPanel.add(createBuildGraphPage(), "page1");
         mainPanel.add(createPage("صفحه نمایش گراف و زیرساخت"), "page2");
@@ -35,8 +34,8 @@ public class main {
         JScrollPane scrollPane = new JScrollPane(mainPanel);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        frame.getContentPane().add(scrollPane);
 
+        frame.getContentPane().add(scrollPane);
         frame.setVisible(true);
     }
 
@@ -83,14 +82,12 @@ public class main {
         label.setFont(new Font("Tahoma", Font.BOLD, 18));
         panel.add(label, BorderLayout.CENTER);
 
-        // اگر صفحه الگوریتم‌ها و تحلیل‌ها است، دکمه نمایش MST بالای صفحه قرار می‌گیرد
         if (title.contains("الگوریتم‌ها")) {
             JButton showMSTButton = new JButton("نمایش MST");
             showMSTButton.addActionListener(e -> {
                 List<UniPaths> mst = MSTCalculator.computeMST(universities, paths);
                 graphPanel.setMSTEdges(mst);
                 graphPanel.repaint();
-                // بعد از محاسبه، به صفحه ساخت گراف برگردیم
                 cardLayout.show(mainPanel, "page1");
             });
             JPanel topPanel = new JPanel();
@@ -99,7 +96,6 @@ public class main {
             panel.add(topPanel, BorderLayout.NORTH);
         }
 
-        // دکمه بازگشت به منوی اصلی
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         bottomPanel.setOpaque(false);
         JButton backButton = new JButton("بازگشت به منوی اصلی");
@@ -114,14 +110,14 @@ public class main {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(144, 238, 144));
 
-        // بخش سمت راست: فرم افزودن دانشگاه و مسیر
+        // فرم سمت راست
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setOpaque(false);
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 40, 20, 40));
 
         JTextField nameField = new JTextField(12);
-        String[] regions = { "شمال", "جنوب", "شرق", "غرب", "مرکز" };
+        String[] regions = {"شمال", "جنوب", "شرق", "غرب", "مرکز"};
         JComboBox<String> regionField = new JComboBox<>(regions);
         JComboBox<Universities> fromBox = new JComboBox<>();
         JComboBox<Universities> toBox = new JComboBox<>();
@@ -138,6 +134,7 @@ public class main {
         contentPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
         JButton addUniBtn = new JButton("افزودن دانشگاه");
+        addUniBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
         contentPanel.add(addUniBtn);
         contentPanel.add(Box.createRigidArea(new Dimension(0, 20)));
 
@@ -158,35 +155,38 @@ public class main {
         contentPanel.add(Box.createRigidArea(new Dimension(0, 5)));
         contentPanel.add(new JLabel("ظرفیت:"));
         contentPanel.add(capacityField);
-        contentPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 15)));
         JButton addPathBtn = new JButton("افزودن مسیر");
+        addPathBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
         contentPanel.add(addPathBtn);
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
 
-        // دکمه نمایش MST در پایین فرم
-        contentPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+        JButton backButton = new JButton("بازگشت به منوی اصلی");
+        backButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        backButton.addActionListener(e -> cardLayout.show(mainPanel, "menu"));
+        contentPanel.add(backButton);
+
+        JScrollPane scrollPanel = new JScrollPane(contentPanel);
+        scrollPanel.setPreferredSize(new Dimension(260, 700));
+        panel.add(scrollPanel, BorderLayout.EAST);
+
+        // پنل مرکزی: گراف
+        panel.add(graphPanel, BorderLayout.CENTER);
+
+        // پانل پایینی: دکمه‌ی نمایش MST در مرکز
+        JPanel mstButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        mstButtonPanel.setOpaque(false);
         JButton showMSTButton = new JButton("نمایش MST");
-        showMSTButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         showMSTButton.addActionListener(e -> {
             List<UniPaths> mst = MSTCalculator.computeMST(universities, paths);
             graphPanel.setMSTEdges(mst);
             graphPanel.repaint();
         });
-        contentPanel.add(showMSTButton);
+        mstButtonPanel.add(showMSTButton);
+        panel.add(mstButtonPanel, BorderLayout.SOUTH);
 
-        contentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-        JButton backButton = new JButton("بازگشت به منوی اصلی");
-        backButton.addActionListener(e -> cardLayout.show(mainPanel, "menu"));
-        contentPanel.add(backButton);
-
-        // نوار اسکرول برای فرم
-        JScrollPane scrollPanel = new JScrollPane(contentPanel);
-        scrollPanel.setPreferredSize(new Dimension(260, 700));
-
-        panel.add(scrollPanel, BorderLayout.EAST);
-        panel.add(graphPanel, BorderLayout.CENTER);
-
-        // Listenerها
+        // ActionListener برای افزودن دانشگاه با پیشنهاد اتصال پویا
         addUniBtn.addActionListener(e -> {
             String name = nameField.getText().trim();
             String region = (String) regionField.getSelectedItem();
@@ -196,11 +196,19 @@ public class main {
                 universityPositions.put(name, new Point(u.getX(), u.getY()));
                 fromBox.addItem(u);
                 toBox.addItem(u);
+
+                // پیشنهاد خودکار اتصال با کمترین هزینه
+                GraphUtils.updateGraphAfterAddingUniversity(u, universities, paths);
+                    if (universities.size() != 1) {
+                        JOptionPane.showMessageDialog(panel,
+                                "مسیر پیشنهادی با کمترین هزینه به دانشگاه جدید اضافه شد.");
+                    }
                 nameField.setText("");
                 graphPanel.repaint();
             }
         });
 
+        // ActionListener برای افزودن مسیر جدید
         addPathBtn.addActionListener(e -> {
             Universities from = (Universities) fromBox.getSelectedItem();
             Universities to = (Universities) toBox.getSelectedItem();
@@ -211,14 +219,12 @@ public class main {
                 int capacity = Integer.parseInt(capacityField.getText());
                 if (from != null && to != null && !from.equals(to)) {
                     UniPaths path = new UniPaths(startTime, endTime, cost, capacity,
-                            from.getUniversityName(), to.getUniversityName());
-                    boolean exists = paths.stream()
-                            .anyMatch(p -> p.getStartLocation().equals(path.getStartLocation())
-                                    && p.getEndLocation().equals(path.getEndLocation()));
+                            from.getUniversityName(), to.getUniversityName(), false);
+                    boolean exists = paths.stream().anyMatch(p ->
+                            p.getStartLocation().equals(path.getStartLocation()) &&
+                                    p.getEndLocation().equals(path.getEndLocation()));
                     if (!exists) {
                         paths.add(path);
-                    } else {
-                        JOptionPane.showMessageDialog(panel, "بین این دو دانشگاه مسیر وجود دارد.");
                     }
                     costField.setText("");
                     startTimeField.setText("");

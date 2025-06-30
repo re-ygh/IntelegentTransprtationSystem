@@ -35,6 +35,9 @@ public class GraphPanel extends JPanel {
 
             if (edge.isInMST()) {
                 g2.setColor(new Color(50, 30, 220)); // یال‌های MST
+            } else if (edge.isRandom()){
+                g2.setColor(Color.gray); // یال‌های معمولی
+
             } else {
                 g2.setColor(Color.BLACK); // یال‌های معمولی
             }
