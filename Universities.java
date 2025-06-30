@@ -1,15 +1,15 @@
-import java.awt.*;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 
 public class Universities {
     private String universityName;
     private String universityLocation;
-    private int x, y;
-    Universities(String universityName, String universityLocation , int x, int y) {
+    private int startTime, FinishTime;
+    int x, y = 0;
+    Universities(String universityName, String universityLocation , int startTime, int FinishTime) {
         this.universityName = universityName;
         this.universityLocation = universityLocation;
+        this.startTime = startTime;
+        this.FinishTime = FinishTime;
         assignPosition();
     }
 
@@ -32,11 +32,12 @@ public class Universities {
                 x = 50 + rand.nextInt(150);
                 y = 250 + rand.nextInt(200);
             }
-            default -> {
-                x = 400;
-                y = 350;
+            case "مرکز" -> {
+                x = 375 + rand.nextInt(50);   // بازه x: 375 تا 425
+                y = 325 + rand.nextInt(50);   // بازه y: 325 تا 375
             }
         }
+
     }
 
 

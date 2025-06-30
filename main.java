@@ -36,7 +36,7 @@ public class main  {
         mainPanel.add(createPage("صفحه مقیاس‌بندی و خوشه‌بندی"), "page6");
 
         // تنظیم اندازه ترجیحی برای mainPanel (کوچکتر از اندازه کامل مانیتور)
-        mainPanel.setPreferredSize(new Dimension(900, 600));
+        mainPanel.setPreferredSize(new Dimension(1100, 700));
 
         JScrollPane scrollPane = new JScrollPane(mainPanel);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
@@ -45,7 +45,7 @@ public class main  {
         frame.getContentPane().add(scrollPane);
 
         // استفاده از اندازه متوسط و بدون MAXIMIZED
-        frame.setSize(1000, 700); // یا مثلاً 900×600 بسته به نیاز
+        frame.setSize(1100, 700); // یا مثلاً 900×600 بسته به نیاز
         frame.setLocationRelativeTo(null); // وسط صفحه باز شود
         frame.setVisible(true);
     }
@@ -53,7 +53,7 @@ public class main  {
 
     private static JPanel createMainMenu() {
         JPanel panel = new JPanel();
-        panel.setBackground(new Color(144, 238, 144));
+        panel.setBackground(new Color(147, 196, 151));
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
 
@@ -64,7 +64,7 @@ public class main  {
                 "۴. پیشنهاد مسیر و رزرو هوشمند",
                 "۵. سفر چندمقصدی (TSP)",
                 "۶. مقیاس‌بندی و خوشه‌بندی",
-                "۷. درباره / خروج"
+                "۷. خروج"
         };
 
         for (int i = 0; i < titles.length; i++) {
@@ -100,6 +100,7 @@ public class main  {
                 List<UniPaths> mst = MSTCalculator.computeMST(universities, paths);
                 graphPanel.setMSTEdges(mst);
                 graphPanel.repaint();
+
             });
             JPanel topPanel = new JPanel();
             topPanel.setOpaque(false);
@@ -184,12 +185,9 @@ public class main  {
             String name = nameField.getText();
             String region = (String) regionField.getSelectedItem();
             if (!name.isEmpty()) {
-                Random rand = new Random();
-                int x = rand.nextInt(graphPanel.getWidth() - 100) + 50;
-                int y = rand.nextInt(graphPanel.getHeight() - 100) + 50;
-                Universities u = new Universities(name, region, x, y);
+                Universities u = new Universities(name, region, 0, 0);
                 universities.add(u);
-                universityPositions.put(name, new Point(x, y)); // ⬅ این خط ضروریه
+                universityPositions.put(name, new Point(u.getX(), u.getY())); // ⬅ این خط ضروریه
                 fromBox.addItem(u);
                 toBox.addItem(u);
                 nameField.setText("");
@@ -206,8 +204,19 @@ public class main  {
                 int endTime = Integer.parseInt(endTimeField.getText());
                 int capacity = Integer.parseInt(capacityField.getText());
                 if (from != null && to != null && !from.equals(to)) {
+
                     UniPaths path = new UniPaths(startTime, endTime, cost, capacity, from.getUniversityName(), to.getUniversityName());
-                    paths.add(path);
+                    int flag = 0;
+                    for (UniPaths p : paths){
+                        if (p.getStartLocation().equals(path.getStartLocation()) && p.getEndLocation().equals(path.getEndLocation())) {
+                            flag = 1;
+                        }
+                    }
+                    if (flag == 0){
+                        paths.add(path);
+                    } else {
+                        JOptionPane.showMessageDialog(panel, "بین این دو دانشگاه یک مسیر قبلی وجود دارد. میتوانید آن را ادیت بزنید");
+                    }
                     costField.setText("");
                     startTimeField.setText("");
                     endTimeField.setText("");
