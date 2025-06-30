@@ -17,7 +17,7 @@ public class main {
         JFrame frame = new JFrame("سامانه هوشمند حمل و نقل دانشگاهی");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1100, 700);
-        frame.setLocationRelativeTo(null); // وسط صفحه
+        frame.setLocationRelativeTo(null);  // وسط صفحه
 
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
@@ -171,10 +171,10 @@ public class main {
         scrollPanel.setPreferredSize(new Dimension(260, 700));
         panel.add(scrollPanel, BorderLayout.EAST);
 
-        // پنل مرکزی: گراف
+        // بخش مرکزی: رسم گراف
         panel.add(graphPanel, BorderLayout.CENTER);
 
-        // پانل پایینی: دکمه‌ی نمایش MST در مرکز
+        // پانل پایینی: دکمه نمایش MST در مرکز
         JPanel mstButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         mstButtonPanel.setOpaque(false);
         JButton showMSTButton = new JButton("نمایش MST");
@@ -186,29 +186,52 @@ public class main {
         mstButtonPanel.add(showMSTButton);
         panel.add(mstButtonPanel, BorderLayout.SOUTH);
 
-        // ActionListener برای افزودن دانشگاه با پیشنهاد اتصال پویا
+        // ===== تغییر کلیدی: بررسی تکراری بودن نام =====
         addUniBtn.addActionListener(e -> {
             String name = nameField.getText().trim();
             String region = (String) regionField.getSelectedItem();
-            if (!name.isEmpty()) {
-                Universities u = new Universities(name, region, 0, 0);
-                universities.add(u);
-                universityPositions.put(name, new Point(u.getX(), u.getY()));
-                fromBox.addItem(u);
-                toBox.addItem(u);
 
-                // پیشنهاد خودکار اتصال با کمترین هزینه
-                GraphUtils.updateGraphAfterAddingUniversity(u, universities, paths);
-                    if (universities.size() != 1) {
-                        JOptionPane.showMessageDialog(panel,
-                                "مسیر پیشنهادی با کمترین هزینه به دانشگاه جدید اضافه شد.");
-                    }
-                nameField.setText("");
-                graphPanel.repaint();
+            // 1. چک تکراری بودن نام
+            boolean exists = universities.stream()
+                    .anyMatch(u -> u.getUniversityName().equalsIgnoreCase(name));
+            if (exists) {
+                JOptionPane.showMessageDialog(panel,
+                        "دانشگاهی با این نام قبلاً اضافه شده است.",
+                        "خطا",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
             }
+            // 2. چک خالی بودن نام
+            if (name.isEmpty()) {
+                JOptionPane.showMessageDialog(panel,
+                        "لطفاً نام دانشگاه را وارد کنید.",
+                        "خطا",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            // 3. افزودن دانشگاه جدید
+            Universities u = new Universities(name, region, 0, 0);
+            universities.add(u);
+            universityPositions.put(name, new Point(u.getX(), u.getY()));
+            fromBox.addItem(u);
+            toBox.addItem(u);
+
+            // 4. پیشنهاد خودکار اتصال با کمترین هزینه
+            GraphUtils.updateGraphAfterAddingUniversity(u, universities, paths);
+
+            // 5. پیام موفقیت و رفرش گراف
+            if (universities.size() != 1) {
+                JOptionPane.showMessageDialog(panel,
+                        "دانشگاه جدید افزوده شد و مسیر پیشنهادی اضافه گردید.",
+                        "موفقیت",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+
+            nameField.setText("");
+            graphPanel.repaint();
         });
 
-        // ActionListener برای افزودن مسیر جدید
+        // Listener افزودن مسیر
         addPathBtn.addActionListener(e -> {
             Universities from = (Universities) fromBox.getSelectedItem();
             Universities to = (Universities) toBox.getSelectedItem();
@@ -218,13 +241,19 @@ public class main {
                 int endTime = Integer.parseInt(endTimeField.getText());
                 int capacity = Integer.parseInt(capacityField.getText());
                 if (from != null && to != null && !from.equals(to)) {
-                    UniPaths path = new UniPaths(startTime, endTime, cost, capacity,
+                    UniPaths path = new UniPaths(
+                            startTime, endTime, cost, capacity,
                             from.getUniversityName(), to.getUniversityName(), false);
-                    boolean exists = paths.stream().anyMatch(p ->
+                    boolean existsPath = paths.stream().anyMatch(p ->
                             p.getStartLocation().equals(path.getStartLocation()) &&
                                     p.getEndLocation().equals(path.getEndLocation()));
-                    if (!exists) {
+                    if (!existsPath) {
                         paths.add(path);
+                    } else {
+                        if (!paths.isEmpty()) {
+                            JOptionPane.showMessageDialog(panel,
+                                    "بین این دو دانشگاه یک مسیر قبلی وجود دارد.");
+                        }
                     }
                     costField.setText("");
                     startTimeField.setText("");
