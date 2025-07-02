@@ -14,7 +14,7 @@ public class GraphPanel extends JPanel {
     private Map<String, Point> universityPositions;     // مختصات دانشگاه‌ها
     private List<Universities> universities;            // لیست نودها
     private List<UniPaths> mstEdges = null;             // یال‌های MST پس از محاسبه
-    private boolean mstButtonClicked = false;
+
     public GraphPanel(List<UniPaths> paths,
                       Map<String, Point> positions,
                       List<Universities> universities) {
@@ -32,7 +32,6 @@ public class GraphPanel extends JPanel {
         JButton mstButton = new JButton("نمایش MST");
         mstButton.addActionListener(e -> {
             this.mstEdges = MSTCalculator.computeMST(universities, paths);
-            mstButtonClicked = true;
             repaint();
         });
 
@@ -87,8 +86,6 @@ public class GraphPanel extends JPanel {
                         "خطا", JOptionPane.ERROR_MESSAGE
                 );
             } else {
-                if (UniPaths.DijkstraShortestPath(paths, origin, dest)) {
-                // TODO: اضافه کردن منطق محاسبه مسیر و رزرو هوشمند
                 JOptionPane.showMessageDialog(
                         this,
                         "درخواست ثبت شد:\n" +
@@ -97,13 +94,6 @@ public class GraphPanel extends JPanel {
                                 "مقصد: "    + dest,
                         "ثبت پیشنهاد مسیر", JOptionPane.INFORMATION_MESSAGE
                 );
-                repaint();
-                }else {
-                    JOptionPane.showMessageDialog(
-                            this, "بین این دو دانشگاه مسیر خالی ای وجود ندارد.",
-                            "خطا", JOptionPane.ERROR_MESSAGE
-                    );
-                }
             }
         }
     }
@@ -139,8 +129,7 @@ public class GraphPanel extends JPanel {
                     ok ? "اتصال برقرار است (۲ گام یا کمتر)"
                             : "اتصال وجود ندارد یا بیش از ۲ گام نیاز است",
                     "نتیجه",
-                    ok ? JOptionPane.INFORMATION_MESSAGE
-                            : JOptionPane.WARNING_MESSAGE
+                    ok ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE
             );
         }
     }
@@ -157,24 +146,12 @@ public class GraphPanel extends JPanel {
             Point b = universityPositions.get(p.getEndLocation());
             if (a == null || b == null) continue;
 
-            if (mstButtonClicked){
-                if (mstEdges != null && mstEdges.contains(p)) {
-                    g2.setColor(Color.BLUE);
-                } else if (p.isRandom()) {
-                    g2.setColor(Color.LIGHT_GRAY);
-                } else {
-                    g2.setColor(Color.BLACK);
-                }
+            if (mstEdges != null && mstEdges.contains(p)) {
+                g2.setColor(Color.BLUE);
+            } else if (p.isRandom()) {
+                g2.setColor(Color.LIGHT_GRAY);
             } else {
-                if (p.isRandom()) {
-                    g2.setColor(Color.LIGHT_GRAY);
-                } else {
-                    if(p.isHighlighted()){
-                        g2.setColor(Color.RED);
-                    }else {
-                        g2.setColor(Color.BLACK);
-                    }
-                }
+                g2.setColor(Color.BLACK);
             }
             g2.drawLine(a.x, a.y, b.x, b.y);
             g2.setColor(Color.BLACK);

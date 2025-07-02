@@ -192,7 +192,6 @@ public class main {
                 return;
             }
 
-            // ساخت و اضافه کردن دانشگاه جدید به همراه موقعیت گرافیکی مناسب
             Universities u = Universities.generateNewUniversity(
                     name, region, 0, 0, universities, 750, 700
             );
@@ -201,10 +200,9 @@ public class main {
             fromBox.addItem(u);
             toBox.addItem(u);
 
-            // پیشنهاد اتصال خودکار با کمترین هزینه (فاز اول)
             GraphUtils.updateGraphAfterAddingUniversity(u, universities, paths);
 
-            if (universities.size() != 1) {
+            if (universities.size() > 1) {
                 JOptionPane.showMessageDialog(panel,
                         "دانشگاه جدید افزوده شد و مسیر پیشنهادی اضافه گردید.",
                         "موفقیت", JOptionPane.INFORMATION_MESSAGE);
@@ -219,55 +217,77 @@ public class main {
             Universities from = (Universities) fromBox.getSelectedItem();
             Universities to   = (Universities) toBox.getSelectedItem();
             try {
-                int cost      = Integer.parseInt(costField.getText());
-                int startTime = Integer.parseInt(startTimeField.getText());
-                int endTime   = Integer.parseInt(endTimeField.getText());
-                int capacity  = Integer.parseInt(capacityField.getText());
+                int cost      = Integer.parseInt(costField.getText().trim());
+                int startTime = Integer.parseInt(startTimeField.getText().trim());
+                int endTime   = Integer.parseInt(endTimeField.getText().trim());
+                int capacity  = Integer.parseInt(capacityField.getText().trim());
 
-                if (from != null && to != null && !from.equals(to)) {
-                    // حذف مسیر پیشنهادی (طوسی) قبلی بین این دو
-                    Iterator<UniPaths> iter = paths.iterator();
-                    while (iter.hasNext()) {
-                        UniPaths p = iter.next();
-                        if (p.isRandom() &&
-                                (
-                                        (p.getStartLocation().equals(from.getUniversityName()) &&
-                                                p.getEndLocation().equals(to.getUniversityName()))
-                                                || (p.getStartLocation().equals(to.getUniversityName()) &&
-                                                p.getEndLocation().equals(from.getUniversityName()))
-                                )) {
-                            iter.remove();
-                            break;
-                        }
-                    }
-
-                    // ایجاد مسیر دستی جدید (مشکی)
-                    UniPaths path = new UniPaths(
-                            startTime, endTime, cost, capacity,
-                            from.getUniversityName(), to.getUniversityName(), false, capacity
-                    );
-
-                    boolean existsPath = paths.stream().anyMatch(p ->
-                            p.getStartLocation().equals(path.getStartLocation()) &&
-                                    p.getEndLocation().equals(path.getEndLocation())
-                    );
-
-                    if (!existsPath) {
-                        paths.add(path);
-                    } else {
-                        JOptionPane.showMessageDialog(panel,
-                                "بین این دو دانشگاه یک مسیر قبلی وجود دارد.");
-                    }
-
-                    // پاکسازی فیلدها و بازنقش کردن گراف
-                    costField.setText("");
-                    startTimeField.setText("");
-                    endTimeField.setText("");
-                    capacityField.setText("");
-                    graphPanel.repaint();
+                // اعتبارسنجی انتخاب مبدا/مقصد
+                if (from == null || to == null || from.equals(to)) {
+                    JOptionPane.showMessageDialog(panel,
+                            "دانشگاه مبدا و مقصد نمی‌توانند خالی یا یکسان باشند.",
+                            "خطا", JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
+                // اعتبارسنجی بازه زمانی 0–24
+                if (startTime < 0 || startTime > 24 || endTime < 0 || endTime > 24) {
+                    JOptionPane.showMessageDialog(panel,
+                            "زمان شروع و پایان باید عددی بین ۰ تا ۲۴ باشند.",
+                            "خطا", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                // اعتبارسنجی ترتیب زمانی
+                if (endTime < startTime) {
+                    JOptionPane.showMessageDialog(panel,
+                            "زمان پایان نمی‌تواند کمتر از زمان شروع باشد.",
+                            "خطا", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                // حذف مسیر پیشنهادی (طوسی) قبلی بین این دو
+                Iterator<UniPaths> iter = paths.iterator();
+                while (iter.hasNext()) {
+                    UniPaths p = iter.next();
+                    if (p.isRandom() &&
+                            ((p.getStartLocation().equals(from.getUniversityName()) &&
+                                    p.getEndLocation().equals(to.getUniversityName())) ||
+                                    (p.getStartLocation().equals(to.getUniversityName()) &&
+                                            p.getEndLocation().equals(from.getUniversityName())))) {
+                        iter.remove();
+                        break;
+                    }
+                }
+
+                // ایجاد مسیر دستی جدید (مشکی)
+                UniPaths path = new UniPaths(
+                        startTime, endTime, cost, capacity,
+                        from.getUniversityName(), to.getUniversityName(),
+                        false, capacity
+                );
+
+                boolean existsPath = paths.stream().anyMatch(p ->
+                        p.getStartLocation().equals(path.getStartLocation()) &&
+                                p.getEndLocation().equals(path.getEndLocation())
+                );
+
+                if (!existsPath) {
+                    paths.add(path);
+                } else {
+                    JOptionPane.showMessageDialog(panel,
+                            "بین این دو دانشگاه یک مسیر قبلی وجود دارد.",
+                            "خطا", JOptionPane.WARNING_MESSAGE);
+                }
+
+                costField.setText("");
+                startTimeField.setText("");
+                endTimeField.setText("");
+                capacityField.setText("");
+                graphPanel.repaint();
+
             } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(panel, "مقادیر عددی را درست وارد کنید");
+                JOptionPane.showMessageDialog(panel,
+                        "لطفاً مقادیر عددی را به درستی وارد کنید.",
+                        "خطا", JOptionPane.ERROR_MESSAGE);
             }
         });
 
