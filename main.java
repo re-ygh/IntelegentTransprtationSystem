@@ -198,7 +198,7 @@ public class main {
                 return;
             }
             // 3. افزودن دانشگاه جدید
-            Universities u = new Universities(name, region, 0, 0);
+            Universities u = Universities.generateNewUniversity(name,region,0 ,0, universities, 750, 700);
             universities.add(u);
             universityPositions.put(name, new Point(u.getX(), u.getY()));
             fromBox.addItem(u);

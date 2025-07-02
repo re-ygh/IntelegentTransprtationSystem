@@ -1,3 +1,5 @@
+import java.awt.*;
+import java.util.List;
 import java.util.Random;
 
 public class Universities {
@@ -5,39 +7,71 @@ public class Universities {
     private String universityLocation;
     private int startTime, FinishTime;
     int x, y = 0;
-    Universities(String universityName, String universityLocation , int startTime, int FinishTime) {
+    Universities(String universityName, String universityLocation , int startTime, int FinishTime, int x, int y) {
         this.universityName = universityName;
         this.universityLocation = universityLocation;
         this.startTime = startTime;
         this.FinishTime = FinishTime;
-        assignPosition();
+        this.x = x;
+        this.y = y;
     }
 
-    private void assignPosition() {
+    public static Universities generateNewUniversity(String name, String universityLocation, int startTime, int FinishTime, List<Universities> existing, int panelWidth, int panelHeight) {
         Random rand = new Random();
+        int minDistance = 80;
+
+        Rectangle zone;
+        int centerX = panelWidth / 2;
+        int centerY = panelHeight / 2;
+
+        // ناحیه اختصاصی بر اساس موقعیت انتخابی کاربر
         switch (universityLocation) {
-            case "شمال" -> {
-                x = 300 + rand.nextInt(300);  // بازه x: 300 تا 600
-                y = 50 + rand.nextInt(100);   // بازه y: 50 تا 150
+            case "شمال":
+                zone = new Rectangle(panelWidth / 3, 0, panelWidth / 3, panelHeight / 4);
+                break;
+            case "جنوب":
+                zone = new Rectangle(panelWidth / 3, 3 * panelHeight / 4, panelWidth / 3, panelHeight / 4);
+                break;
+            case "شرق":
+                zone = new Rectangle(3 * panelWidth / 4, panelHeight / 3, panelWidth / 4 - 10, panelHeight / 3);
+                break;
+            case "غرب":
+                zone = new Rectangle(0, panelHeight / 3, panelWidth / 4 - 10, panelHeight / 3);
+                break;
+            case "مرکز":
+                zone = new Rectangle(panelWidth / 3, panelHeight / 3, panelWidth / 3, panelHeight / 3);
+                break;
+            default:
+                zone = new Rectangle(50, 50, panelWidth - 100, panelHeight - 100);
+        }
+
+        int maxAttempts = 1000;
+        int fallbackAttempts = 100;
+        boolean tooClose;
+        int x = 50, y = 50;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            x = zone.x + rand.nextInt(Math.max(1, zone.width - 50)) + 25;
+            y = zone.y + rand.nextInt(Math.max(1, zone.height - 50)) + 25;
+
+            tooClose = false;
+            for (Universities u : existing) {
+                int dx = x - u.getX();
+                int dy = y - u.getY();
+                if (Math.sqrt(dx * dx + dy * dy) < minDistance) {
+                    tooClose = true;
+                    break;
+                }
             }
-            case "جنوب" -> {
-                x = 300 + rand.nextInt(300);
-                y = 550 + rand.nextInt(100);
-            }
-            case "شرق" -> {
-                x = 600 + rand.nextInt(150);
-                y = 250 + rand.nextInt(200);
-            }
-            case "غرب" -> {
-                x = 50 + rand.nextInt(150);
-                y = 250 + rand.nextInt(200);
-            }
-            case "مرکز" -> {
-                x = 375 + rand.nextInt(50);   // بازه x: 375 تا 425
-                y = 325 + rand.nextInt(50);   // بازه y: 325 تا 375
+            if (!tooClose) {
+                return new Universities(name, universityLocation, startTime, FinishTime, x , y);
             }
         }
 
+        // اگر همه تلاش‌ها با فاصله مناسب شکست خورد، مختصات رندوم در همان ناحیه (بدون بررسی فاصله)
+        x = zone.x + rand.nextInt(Math.max(1, zone.width - 50)) + 25;
+        y = zone.y + rand.nextInt(Math.max(1, zone.height - 50)) + 25;
+        return new Universities(name, universityLocation, startTime, FinishTime, x , y);
     }
 
 
