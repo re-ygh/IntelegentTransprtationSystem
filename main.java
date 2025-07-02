@@ -82,19 +82,19 @@ public class main {
         label.setFont(new Font("Tahoma", Font.BOLD, 18));
         panel.add(label, BorderLayout.CENTER);
 
-        if (title.contains("الگوریتم‌ها")) {
-            JButton showMSTButton = new JButton("نمایش MST");
-            showMSTButton.addActionListener(e -> {
-                List<UniPaths> mst = MSTCalculator.computeMST(universities, paths);
-                graphPanel.setMSTEdges(mst);
-                graphPanel.repaint();
-                cardLayout.show(mainPanel, "page1");
-            });
-            JPanel topPanel = new JPanel();
-            topPanel.setOpaque(false);
-            topPanel.add(showMSTButton);
-            panel.add(topPanel, BorderLayout.NORTH);
-        }
+//        if (title.contains("الگوریتم‌ها")) {
+//            JButton showMSTButton = new JButton("نمایش MST");
+//                        showMSTButton.addActionListener(e -> {
+//                List<UniPaths> mst = MSTCalculator.computeMST(universities, paths);
+//                graphPanel.setMSTEdges(mst);
+//                graphPanel.repaint();
+//                cardLayout.show(mainPanel, "page1");
+//            });
+//            JPanel topPanel = new JPanel();
+//            topPanel.setOpaque(false);
+//            topPanel.add(showMSTButton);
+//            panel.add(topPanel, BorderLayout.NORTH);
+//        }
 
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         bottomPanel.setOpaque(false);
@@ -173,18 +173,6 @@ public class main {
 
         // بخش مرکزی: رسم گراف
         panel.add(graphPanel, BorderLayout.CENTER);
-
-        // پانل پایینی: دکمه نمایش MST در مرکز
-        JPanel mstButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        mstButtonPanel.setOpaque(false);
-        JButton showMSTButton = new JButton("نمایش MST");
-        showMSTButton.addActionListener(e -> {
-            List<UniPaths> mst = MSTCalculator.computeMST(universities, paths);
-            graphPanel.setMSTEdges(mst);
-            graphPanel.repaint();
-        });
-        mstButtonPanel.add(showMSTButton);
-        panel.add(mstButtonPanel, BorderLayout.SOUTH);
 
         // ===== تغییر کلیدی: بررسی تکراری بودن نام =====
         addUniBtn.addActionListener(e -> {

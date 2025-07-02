@@ -16,20 +16,35 @@ public class GraphPanel extends JPanel {
         this.universityPositions = universityPositions;
         this.universities = universities;
         setBackground(new Color(147, 196, 151)); // بک‌گراند سیاه
-        setupReachabilityButton(); // تنظیم دکمه بررسی اتصال
+        setupTopButtons();
     }
 
-
-    // اضافه کردن دکمه برای بررسی ارتباط دو دانشگاه با حداکثر ۲ گام
-    private void setupReachabilityButton() {
+    private void setupTopButtons() {
+        // ساخت دکمه بررسی اتصال
         JButton reachButton = new JButton("بررسی ارتباط دو دانشگاه (حداکثر ۲ گام)");
-        reachButton.addActionListener(e -> showReachabilityDialog()); // تنظیم اکشن کلیک
+        reachButton.addActionListener(e -> showReachabilityDialog());
 
+        // ساخت دکمه نمایش MST
+        JButton showMSTButton = new JButton("نمایش MST");
+        showMSTButton.addActionListener(e -> {
+            List<UniPaths> mst = MSTCalculator.computeMST(universities, main.paths);
+            setMSTEdges(mst); // فرض: متدی برای اعمال MST روی گراف
+            repaint(); // بازنقاشی گراف
+        });
+
+        // ساخت پنل بالا برای نگهداری دکمه‌ها
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        topPanel.setBackground(new Color(117, 166, 121)); // کمی تیره‌تر از رنگ سبز روشن قبلی
+
+        topPanel.add(reachButton);
+        topPanel.add(showMSTButton);
+
+        // چسباندن پنل به بالای رابط گرافیکی
         this.setLayout(new BorderLayout());
-        JPanel topPanel = new JPanel();
-        topPanel.add(reachButton); // افزودن دکمه به پنل بالا
-        this.add(topPanel, BorderLayout.NORTH); // افزودن پنل بالا به بخش شمالی رابط گرافیکی
+        this.add(topPanel, BorderLayout.NORTH);
     }
+
+
 
     // نمایش دیالوگ برای انتخاب دو دانشگاه و بررسی اتصال
     private void showReachabilityDialog() {
