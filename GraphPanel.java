@@ -1,4 +1,3 @@
-// GraphPanel.java
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
@@ -6,7 +5,7 @@ import java.util.Map;
 
 /**
  * این کلاس نمای گرافیکی از گراف دانشگاهی را رسم می‌کند و دکمه‌های
- * نمایش MST، بررسی ارتباط دو دانشگاه و پیشنهاد مسیر را در بالا نمایش می‌دهد.
+ * نمایش MST، بررسی ارتباط دو دانشگاه و پیشنهاد مسیر و رزرو هوشمند را در بالا نمایش می‌دهد.
  */
 public class GraphPanel extends JPanel {
 
@@ -31,6 +30,11 @@ public class GraphPanel extends JPanel {
 
         JButton mstButton = new JButton("نمایش MST");
         mstButton.addActionListener(e -> {
+            // پاک‌سازی هرگونه هایلایت قبلی
+            for (UniPaths p : paths) {
+                p.setHighlighted(false);
+            }
+            // محاسبه MST و نمایش آن
             this.mstEdges = MSTCalculator.computeMST(universities, paths);
             repaint();
         });
@@ -48,7 +52,7 @@ public class GraphPanel extends JPanel {
         this.add(topPanel, BorderLayout.NORTH);
     }
 
-    /** دیالوگ پیشنهاد مسیر و رزرو هوشمند */
+    /** دیالوگ پیشنهاد مسیر و رزرو هوشمند با نمایش همزمان ورودی و لیست مسیرها */
     private void showSuggestionDialog() {
         JTextField studentField = new JTextField(12);
         String[] uniNames = universities.stream()
@@ -57,43 +61,69 @@ public class GraphPanel extends JPanel {
         JComboBox<String> originCombo = new JComboBox<>(uniNames);
         JComboBox<String> destCombo   = new JComboBox<>(uniNames);
 
-        JPanel panel = new JPanel(new GridLayout(3, 2, 5, 5));
-        panel.add(new JLabel("نام دانشجو:"));
-        panel.add(studentField);
-        panel.add(new JLabel("دانشگاه مبدا:"));
-        panel.add(originCombo);
-        panel.add(new JLabel("دانشگاه مقصد:"));
-        panel.add(destCombo);
+        JPanel inputPanel = new JPanel(new GridLayout(3, 2, 5, 5));
+        inputPanel.add(new JLabel("نام دانشجو:"));
+        inputPanel.add(studentField);
+        inputPanel.add(new JLabel("دانشگاه مبدا:"));
+        inputPanel.add(originCombo);
+        inputPanel.add(new JLabel("دانشگاه مقصد:"));
+        inputPanel.add(destCombo);
+
+        DefaultListModel<String> model = new DefaultListModel<>();
+        for (UniPaths p : paths) {
+            String line = String.format(
+                    "%s → %s  | هزینه: %d  | ظرفیت باقیمانده: %d",
+                    p.getStartLocation(), p.getEndLocation(), p.getCost(), p.getRemainingCapacity()
+            );
+            model.addElement(line);
+        }
+        JList<String> list = new JList<>(model);
+        list.setVisibleRowCount(10);
+        JScrollPane listScroll = new JScrollPane(list);
+        listScroll.setPreferredSize(new Dimension(500, 200));
+
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.add(inputPanel, BorderLayout.NORTH);
+        mainPanel.add(listScroll, BorderLayout.CENTER);
 
         int result = JOptionPane.showConfirmDialog(
-                this, panel,
+                this, mainPanel,
                 "پیشنهاد مسیر و رزرو هوشمند",
-                JOptionPane.OK_CANCEL_OPTION
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
         );
+
         if (result == JOptionPane.OK_OPTION) {
             String student = studentField.getText().trim();
             String origin  = (String) originCombo.getSelectedItem();
             String dest    = (String) destCombo.getSelectedItem();
 
             if (student.isEmpty()) {
-                JOptionPane.showMessageDialog(
-                        this, "لطفاً نام دانشجو را وارد کنید.",
-                        "خطا", JOptionPane.ERROR_MESSAGE
-                );
+                JOptionPane.showMessageDialog(this,
+                        "لطفاً نام دانشجو را وارد کنید.",
+                        "خطا", JOptionPane.ERROR_MESSAGE);
             } else if (origin.equals(dest)) {
-                JOptionPane.showMessageDialog(
-                        this, "دانشگاه مبدا و مقصد نمی‌توانند یکسان باشند.",
-                        "خطا", JOptionPane.ERROR_MESSAGE
-                );
+                JOptionPane.showMessageDialog(this,
+                        "دانشگاه مبدا و مقصد نمی‌توانند یکسان باشند.",
+                        "خطا", JOptionPane.ERROR_MESSAGE);
             } else {
-                JOptionPane.showMessageDialog(
-                        this,
-                        "درخواست ثبت شد:\n" +
-                                "دانشجو: " + student + "\n" +
-                                "مبدا: "    + origin  + "\n" +
-                                "مقصد: "    + dest,
-                        "ثبت پیشنهاد مسیر", JOptionPane.INFORMATION_MESSAGE
-                );
+                // مسیریابی با دایکسترا و هایلایت یال‌ها
+                boolean found = UniPaths.DijkstraShortestPath(paths, origin, dest);
+                if (!found) {
+                    JOptionPane.showMessageDialog(this,
+                            "مسیر مناسبی یافت نشد.",
+                            "خطا", JOptionPane.WARNING_MESSAGE);
+                } else {
+                    // پس از پیدا شدن مسیر، repaint برای نمایش یال‌های قرمز
+                    repaint();
+                    JOptionPane.showMessageDialog(this,
+                            "درخواست ثبت شد:\n" +
+                                    "دانشجو: " + student + "\n" +
+                                    "مبدا: "    + origin  + "\n" +
+                                    "مقصد: "    + dest,
+                            "ثبت پیشنهاد مسیر", JOptionPane.INFORMATION_MESSAGE
+                    );
+                }
             }
         }
     }
@@ -115,7 +145,8 @@ public class GraphPanel extends JPanel {
         int res = JOptionPane.showConfirmDialog(
                 this, panel,
                 "بررسی اتصال با حداکثر ۲ گام",
-                JOptionPane.OK_CANCEL_OPTION
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
         );
         if (res == JOptionPane.OK_OPTION) {
             boolean ok = BFSDepth2Checker
@@ -140,13 +171,15 @@ public class GraphPanel extends JPanel {
         Graphics2D g2 = (Graphics2D) g;
         g2.setStroke(new BasicStroke(2));
 
-        // رسم یال‌ها
+        // اولویت به یال‌های هایلایت شده (قرمز)
         for (UniPaths p : paths) {
             Point a = universityPositions.get(p.getStartLocation());
             Point b = universityPositions.get(p.getEndLocation());
             if (a == null || b == null) continue;
 
-            if (mstEdges != null && mstEdges.contains(p)) {
+            if (p.isHighlighted()) {
+                g2.setColor(Color.RED);
+            } else if (mstEdges != null && mstEdges.contains(p)) {
                 g2.setColor(Color.BLUE);
             } else if (p.isRandom()) {
                 g2.setColor(Color.LIGHT_GRAY);
