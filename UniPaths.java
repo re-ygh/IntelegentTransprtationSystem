@@ -11,10 +11,11 @@ public class UniPaths implements Serializable {
     private int capacity;
     private String startLocation;
     private String endLocation;
+    private boolean isFull;
     private boolean isRandom; // مشخص می‌کند آیا یال به‌صورت خودکار تولید شده یا دستی
 
     public UniPaths(int startTime, int endTime, int cost, int capacity,
-                    String startLocation, String endLocation, boolean isRandom) {
+                    String startLocation, String endLocation, boolean isRandom, boolean isFull) {
         this.startTime = startTime;
         this.endTime = endTime;
         this.cost = cost;
@@ -22,8 +23,16 @@ public class UniPaths implements Serializable {
         this.startLocation = startLocation;
         this.endLocation = endLocation;
         this.isRandom = isRandom;
+        this.isFull = isFull;
     }
 
+    public boolean isFull() {
+        return isFull;
+    }
+
+    public void setFull(boolean full) {
+        isFull = full;
+    }
     // متدهای دسترسی به فیلدها (getter و setter)
 
     public int getStartTime() {

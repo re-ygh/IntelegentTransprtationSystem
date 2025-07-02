@@ -260,7 +260,7 @@ public class main {
                     // ایجاد مسیر دستی جدید (مشکی)
                     UniPaths path = new UniPaths(
                             startTime, endTime, cost, capacity,
-                            from.getUniversityName(), to.getUniversityName(), false
+                            from.getUniversityName(), to.getUniversityName(), false, false
                     );
 
                     boolean existsPath = paths.stream().anyMatch(p ->
