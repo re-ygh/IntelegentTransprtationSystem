@@ -1,3 +1,4 @@
+// main.java
 import javax.swing.*;
 import java.awt.*;
 import java.util.*;
@@ -5,7 +6,6 @@ import java.util.List;
 
 /**
  * کلاس اصلی اجرای برنامه: «سامانه هوشمند حمل و نقل دانشگاهی»
- * در این کلاس پنجره گرافیکی اصلی ایجاد شده و صفحات مختلف (CardLayout) مدیریت می‌شوند.
  */
 public class main {
 
@@ -21,41 +21,34 @@ public class main {
     // پنل مرکزی رسم گراف با سه منبع داده: مسیرها، مختصات، دانشگاه‌ها
     static GraphPanel graphPanel = new GraphPanel(paths, universityPositions, universities);
 
-    private static JPanel mainPanel;
-    private static CardLayout cardLayout;
+    // دسترسی سراسری به ناوبری صفحه‌ها
+    public static JPanel mainPanel;
+    public static CardLayout cardLayout;
 
     public static void main(String[] args) {
         JFrame frame = new JFrame("سامانه هوشمند حمل و نقل دانشگاهی");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1100, 700);
-        frame.setLocationRelativeTo(null);  // نمایش در مرکز صفحه
+        frame.setLocationRelativeTo(null);
 
-        // تنظیم صفحات مختلف برنامه با استفاده از CardLayout
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
 
-        // صفحه‌ها بر اساس انتخاب منو (page1 تا page6)
+        // افزودن صفحات
         mainPanel.add(createMainMenu(), "menu");
         mainPanel.add(createBuildGraphPage(), "page1");
         mainPanel.add(createPage("صفحه نمایش گراف و زیرساخت"), "page2");
-        mainPanel.add(createPage("صفحه الگوریتم‌ها و تحلیل‌ها"), "page3");
-        mainPanel.add(createPage("صفحه پیشنهاد مسیر و رزرو هوشمند"), "page4");
         mainPanel.add(createPage("صفحه سفر چندمقصدی (TSP)"), "page5");
-        mainPanel.add(createPage("صفحه مقیاس‌بندی و خوشه‌بندی"), "page6");
+        // صفحه پیشنهاد مسیر دیگر در منوی اصلی نیست—دسترسی از GraphPanel
 
-        // نمایش اسکرول در صورت بزرگ بودن محتوا
-        mainPanel.setPreferredSize(new Dimension(1100, 700));
-        JScrollPane scrollPane = new JScrollPane(mainPanel);
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-
+        JScrollPane scrollPane = new JScrollPane(mainPanel,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         frame.getContentPane().add(scrollPane);
         frame.setVisible(true);
     }
 
-    /**
-     * ساخت منوی اصلی برنامه شامل ۶ گزینه عملیاتی + دکمه خروج
-     */
+    /** ایجاد منوی اصلی برنامه */
     private static JPanel createMainMenu() {
         JPanel panel = new JPanel();
         panel.setBackground(new Color(147, 196, 151));
@@ -65,12 +58,10 @@ public class main {
         String[] titles = {
                 "۱. ساخت گراف دانشگاه‌ها",
                 "۲. نمایش گراف و زیرساخت",
-                "۳. الگوریتم‌ها و تحلیل‌ها",
-                "۴. پیشنهاد مسیر و رزرو هوشمند",
-                "۵. سفر چندمقصدی (TSP)",
-                "۶. مقیاس‌بندی و خوشه‌بندی",
-                "۷. خروج"
+                "۳. سفر چندمقصدی (TSP)",
+                "۴. خروج"
         };
+        String[] pageIds = {"page1", "page2", "page5", "exit"};
 
         for (int i = 0; i < titles.length; i++) {
             JButton btn = new JButton(titles[i]);
@@ -79,12 +70,12 @@ public class main {
             panel.add(btn);
             panel.add(Box.createRigidArea(new Dimension(0, 10)));
 
-            int index = i;
+            final int idx = i;
             btn.addActionListener(e -> {
-                if (index == 6) { // گزینه ۷: خروج
+                if (pageIds[idx].equals("exit")) {
                     System.exit(0);
                 } else {
-                    cardLayout.show(mainPanel, "page" + (index + 1));
+                    cardLayout.show(mainPanel, pageIds[idx]);
                 }
             });
         }
@@ -92,9 +83,7 @@ public class main {
         return panel;
     }
 
-    /**
-     * ساخت صفحات عمومی با تیتر مشخص برای گزینه‌های منو (غیراز page1)
-     */
+    /** ایجاد صفحات عمومی */
     private static JPanel createPage(String title) {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(144, 238, 144));
@@ -103,31 +92,27 @@ public class main {
         label.setFont(new Font("Tahoma", Font.BOLD, 18));
         panel.add(label, BorderLayout.CENTER);
 
-        // دکمه بازگشت به منوی اصلی
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        bottomPanel.setOpaque(false);
         JButton backButton = new JButton("بازگشت به منوی اصلی");
         backButton.addActionListener(e -> cardLayout.show(mainPanel, "menu"));
-        bottomPanel.add(backButton);
-        panel.add(bottomPanel, BorderLayout.SOUTH);
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        bottom.setOpaque(false);
+        bottom.add(backButton);
+        panel.add(bottom, BorderLayout.SOUTH);
 
         return panel;
     }
 
-    /**
-     * ساخت صفحه مخصوص ایجاد دانشگاه‌ها و مسیرهای گراف (page1)
-     */
+    /** ایجاد صفحه ساخت گراف دانشگاه‌ها (page1) */
     private static JPanel createBuildGraphPage() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(144, 238, 144));
 
-        // فرم ورودی در سمت راست
+        // —— فرم ورودی دانشگاه و مسیر ——
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setOpaque(false);
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 40, 20, 40));
 
-        // فیلدهای ورودی دانشگاه و مسیر
         JTextField nameField       = new JTextField(12);
         String[] regions           = {"شمال", "جنوب", "شرق", "غرب", "مرکز"};
         JComboBox<String> regionField = new JComboBox<>(regions);
@@ -138,7 +123,6 @@ public class main {
         JTextField endTimeField    = new JTextField(10);
         JTextField capacityField   = new JTextField(10);
 
-        // افزودن فیلدها به پنل ورودی
         contentPanel.add(new JLabel("نام دانشگاه جدید:"));
         contentPanel.add(nameField);
         contentPanel.add(Box.createRigidArea(new Dimension(0, 5)));
@@ -151,7 +135,6 @@ public class main {
         contentPanel.add(addUniBtn);
         contentPanel.add(Box.createRigidArea(new Dimension(0, 20)));
 
-        // افزودن مسیر بین دانشگاه‌ها
         contentPanel.add(new JLabel("از:"));
         contentPanel.add(fromBox);
         contentPanel.add(Box.createRigidArea(new Dimension(0, 5)));
@@ -161,10 +144,10 @@ public class main {
         contentPanel.add(new JLabel("هزینه مسیر:"));
         contentPanel.add(costField);
         contentPanel.add(Box.createRigidArea(new Dimension(0, 5)));
-        contentPanel.add(new JLabel("زمان شروع:"));
+        contentPanel.add(new JLabel("زمان شروع (0–24):"));
         contentPanel.add(startTimeField);
         contentPanel.add(Box.createRigidArea(new Dimension(0, 5)));
-        contentPanel.add(new JLabel("زمان پایان:"));
+        contentPanel.add(new JLabel("زمان پایان (0–24):"));
         contentPanel.add(endTimeField);
         contentPanel.add(Box.createRigidArea(new Dimension(0, 5)));
         contentPanel.add(new JLabel("ظرفیت:"));
@@ -184,8 +167,9 @@ public class main {
         JScrollPane scrollPanel = new JScrollPane(contentPanel);
         scrollPanel.setPreferredSize(new Dimension(260, 700));
         panel.add(scrollPanel, BorderLayout.EAST);
+        // —— پایان فرم ورودی ——
 
-        // نمایش گراف در وسط صفحه
+        // جایگذاری GraphPanel (شامل دکمه‌های MST، Reachability و Suggest)
         panel.add(graphPanel, BorderLayout.CENTER);
 
         // عملکرد دکمه افزودن دانشگاه
@@ -260,7 +244,7 @@ public class main {
                     // ایجاد مسیر دستی جدید (مشکی)
                     UniPaths path = new UniPaths(
                             startTime, endTime, cost, capacity,
-                            from.getUniversityName(), to.getUniversityName(), false, false
+                            from.getUniversityName(), to.getUniversityName(), false, capacity
                     );
 
                     boolean existsPath = paths.stream().anyMatch(p ->
