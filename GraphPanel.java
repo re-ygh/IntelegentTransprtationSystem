@@ -18,7 +18,6 @@ public class GraphPanel extends JPanel {
         this.paths = paths;
         this.universityPositions = universityPositions;
         this.universities = universities;
-        setBackground(new Color(147, 196, 151)); // بک‌گراند سیاه
         setupTopButtons(); // ساخت دکمه‌ها (نمایش MST و بررسی اتصال)
     }
 
@@ -103,7 +102,7 @@ public class GraphPanel extends JPanel {
             g2.drawLine(p1.x, p1.y, p2.x, p2.y);
             int x2 = ((p2.x + p1.x) / 2) + 15;
             int y2 = (p2.y + p1.y) / 2 - 10;
-            String cost = Integer.toString(edge.getCost());
+            String cost = Integer.toString(path.getCost());
             g.setFont(new Font("", Font.PLAIN, 15));
             g2.drawString(cost, x2, y2);
 
@@ -111,31 +110,30 @@ public class GraphPanel extends JPanel {
 
         // رسم نودها (دانشگاه‌ها)
         for (Universities u : universities) {
-            int x = u.getX();
-            int y = u.getY();
-            g2.setColor(Color.GREEN);
-            g2.fillOval(x - 10, y - 10, 20, 20); // دایره سبز برای هر دانشگاه
+                int x = u.getX();
+                int y = u.getY();
 
-        // رسم دانشگاه‌ها
-        for (String uni : universityPositions.keySet()) {
-            Point p = universityPositions.get(uni);
-            for (Universities university : universities) {
-                if (university.getUniversityName().equals(uni)) {
-                    if (university.getUniversityLocation().equals("شمال")) {
-                        g2.setColor(new Color(252, 61, 3));
-                    } else if (university.getUniversityLocation().equals("جنوب")) {
-                        g2.setColor(new Color(252, 152, 3));
-                    } else if (university.getUniversityLocation().equals("شرق")) {
-                        g2.setColor(new Color(177, 3, 252));
-                    } else if (university.getUniversityLocation().equals("غرب")) {
-                        g2.setColor(new Color(252, 3, 136));
-                    }else if (university.getUniversityLocation().equals("مرکز")) {
-                        g2.setColor(new Color(7, 169, 250));
+            // رسم دانشگاه‌ها
+            for (String uni : universityPositions.keySet()) {
+                Point p = universityPositions.get(uni);
+                for (Universities university : universities) {
+                    if (university.getUniversityName().equals(uni)) {
+                        if (university.getUniversityLocation().equals("شمال")) {
+                            g2.setColor(new Color(252, 61, 3));
+                        } else if (university.getUniversityLocation().equals("جنوب")) {
+                            g2.setColor(new Color(252, 152, 3));
+                        } else if (university.getUniversityLocation().equals("شرق")) {
+                            g2.setColor(new Color(177, 3, 252));
+                        } else if (university.getUniversityLocation().equals("غرب")) {
+                            g2.setColor(new Color(252, 3, 136));
+                        }else if (university.getUniversityLocation().equals("مرکز")) {
+                            g2.setColor(new Color(7, 169, 250));
+                        }
                     }
                 }
+                g2.fillOval(p.x - 5, p.y - 5, 20, 20);
+                g2.drawString(u.getUniversityName(), x + 12, y);
             }
-            g2.fillOval(p.x - 5, p.y - 5, 35, 35);
-            g2.drawString(u.getUniversityName(), x + 12, y);
         }
     }
 }
