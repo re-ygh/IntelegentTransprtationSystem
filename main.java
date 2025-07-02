@@ -81,13 +81,14 @@ public class main {
 
             int index = i;
             btn.addActionListener(e -> {
-                if (index == 6) {
+                if (index == 6) { // گزینه ۷: خروج
                     System.exit(0);
                 } else {
                     cardLayout.show(mainPanel, "page" + (index + 1));
                 }
             });
         }
+
         return panel;
     }
 
@@ -127,15 +128,15 @@ public class main {
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 40, 20, 40));
 
         // فیلدهای ورودی دانشگاه و مسیر
-        JTextField nameField = new JTextField(12);
-        String[] regions = {"شمال", "جنوب", "شرق", "غرب", "مرکز"};
+        JTextField nameField       = new JTextField(12);
+        String[] regions           = {"شمال", "جنوب", "شرق", "غرب", "مرکز"};
         JComboBox<String> regionField = new JComboBox<>(regions);
         JComboBox<Universities> fromBox = new JComboBox<>();
-        JComboBox<Universities> toBox = new JComboBox<>();
-        JTextField costField = new JTextField(10);
-        JTextField startTimeField = new JTextField(10);
-        JTextField endTimeField = new JTextField(10);
-        JTextField capacityField = new JTextField(10);
+        JComboBox<Universities> toBox   = new JComboBox<>();
+        JTextField costField       = new JTextField(10);
+        JTextField startTimeField  = new JTextField(10);
+        JTextField endTimeField    = new JTextField(10);
+        JTextField capacityField   = new JTextField(10);
 
         // افزودن فیلدها به پنل ورودی
         contentPanel.add(new JLabel("نام دانشگاه جدید:"));
@@ -189,7 +190,7 @@ public class main {
 
         // عملکرد دکمه افزودن دانشگاه
         addUniBtn.addActionListener(e -> {
-            String name = nameField.getText().trim();
+            String name   = nameField.getText().trim();
             String region = (String) regionField.getSelectedItem();
 
             boolean exists = universities.stream()
@@ -197,20 +198,20 @@ public class main {
             if (exists) {
                 JOptionPane.showMessageDialog(panel,
                         "دانشگاهی با این نام قبلاً اضافه شده است.",
-                        "خطا",
-                        JOptionPane.ERROR_MESSAGE);
+                        "خطا", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             if (name.isEmpty()) {
                 JOptionPane.showMessageDialog(panel,
                         "لطفاً نام دانشگاه را وارد کنید.",
-                        "خطا",
-                        JOptionPane.WARNING_MESSAGE);
+                        "خطا", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
             // ساخت و اضافه کردن دانشگاه جدید به همراه موقعیت گرافیکی مناسب
-            Universities u = Universities.generateNewUniversity(name, region, 0, 0, universities, 750, 700);
+            Universities u = Universities.generateNewUniversity(
+                    name, region, 0, 0, universities, 750, 700
+            );
             universities.add(u);
             universityPositions.put(name, new Point(u.getX(), u.getY()));
             fromBox.addItem(u);
@@ -222,8 +223,7 @@ public class main {
             if (universities.size() != 1) {
                 JOptionPane.showMessageDialog(panel,
                         "دانشگاه جدید افزوده شد و مسیر پیشنهادی اضافه گردید.",
-                        "موفقیت",
-                        JOptionPane.INFORMATION_MESSAGE);
+                        "موفقیت", JOptionPane.INFORMATION_MESSAGE);
             }
 
             nameField.setText("");
@@ -233,20 +233,40 @@ public class main {
         // عملکرد دکمه افزودن مسیر دستی بین دو دانشگاه
         addPathBtn.addActionListener(e -> {
             Universities from = (Universities) fromBox.getSelectedItem();
-            Universities to = (Universities) toBox.getSelectedItem();
+            Universities to   = (Universities) toBox.getSelectedItem();
             try {
-                int cost = Integer.parseInt(costField.getText());
+                int cost      = Integer.parseInt(costField.getText());
                 int startTime = Integer.parseInt(startTimeField.getText());
-                int endTime = Integer.parseInt(endTimeField.getText());
-                int capacity = Integer.parseInt(capacityField.getText());
+                int endTime   = Integer.parseInt(endTimeField.getText());
+                int capacity  = Integer.parseInt(capacityField.getText());
 
                 if (from != null && to != null && !from.equals(to)) {
-                    UniPaths path = new UniPaths(startTime, endTime, cost, capacity,
-                            from.getUniversityName(), to.getUniversityName(), false);
+                    // حذف مسیر پیشنهادی (طوسی) قبلی بین این دو
+                    Iterator<UniPaths> iter = paths.iterator();
+                    while (iter.hasNext()) {
+                        UniPaths p = iter.next();
+                        if (p.isRandom() &&
+                                (
+                                        (p.getStartLocation().equals(from.getUniversityName()) &&
+                                                p.getEndLocation().equals(to.getUniversityName()))
+                                                || (p.getStartLocation().equals(to.getUniversityName()) &&
+                                                p.getEndLocation().equals(from.getUniversityName()))
+                                )) {
+                            iter.remove();
+                            break;
+                        }
+                    }
+
+                    // ایجاد مسیر دستی جدید (مشکی)
+                    UniPaths path = new UniPaths(
+                            startTime, endTime, cost, capacity,
+                            from.getUniversityName(), to.getUniversityName(), false
+                    );
 
                     boolean existsPath = paths.stream().anyMatch(p ->
                             p.getStartLocation().equals(path.getStartLocation()) &&
-                                    p.getEndLocation().equals(path.getEndLocation()));
+                                    p.getEndLocation().equals(path.getEndLocation())
+                    );
 
                     if (!existsPath) {
                         paths.add(path);
@@ -255,6 +275,7 @@ public class main {
                                 "بین این دو دانشگاه یک مسیر قبلی وجود دارد.");
                     }
 
+                    // پاکسازی فیلدها و بازنقش کردن گراف
                     costField.setText("");
                     startTimeField.setText("");
                     endTimeField.setText("");

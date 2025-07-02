@@ -96,7 +96,11 @@ public class GraphPanel extends JPanel {
             if (mstEdges != null && mstEdges.contains(path)) {
                 g2.setColor(Color.BLUE);
             } else {
+                if (path.isRandom()){
                 g2.setColor(Color.LIGHT_GRAY);
+                } else {
+                    g2.setColor(Color.black);
+                }
             }
             g2.drawLine(p1.x, p1.y, p2.x, p2.y);
 
