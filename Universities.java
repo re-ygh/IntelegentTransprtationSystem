@@ -3,8 +3,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * کلاس دانشگاه‌ها - نگهداری اطلاعات پایه‌ای هر دانشگاه به همراه موقعیت مکانی آن
- * شامل: نام، منطقه مکانی، زمان‌های شروع و پایان، مختصات گرافیکی (x, y)
+ * این کلاس نماینده‌ی هر دانشگاه در گراف است و شامل موقعیت، منطقه جغرافیایی و زمان‌های شروع/پایان می‌باشد.
  */
 public class Universities {
     private String universityName;
@@ -22,24 +21,23 @@ public class Universities {
     }
 
     /**
-     * تولید دانشگاه جدید با موقعیت تقریبی بر اساس منطقه انتخاب‌شده توسط کاربر
-     * منطق جلوگیری از هم‌پوشانی دانشگاه‌ها و ایجاد پراکندگی نسبی رعایت شده است
+     * تولید موقعیت دانشگاه بر اساس منطقه انتخاب‌شده و جلوگیری از هم‌پوشانی با ناحیه دکمه‌های بالای صفحه
      */
     public static Universities generateNewUniversity(String name, String universityLocation, int startTime, int FinishTime, List<Universities> existing, int panelWidth, int panelHeight) {
         Random rand = new Random();
-        int minDistance = 80; // حداقل فاصله قابل قبول بین دو دانشگاه
+        int minDistance = 80;
 
         Rectangle zone;
         int centerX = panelWidth / 2;
         int centerY = panelHeight / 2;
+        int topOffset = 80; // جلوگیری از رفتن زیر پنل بالا (مثلاً نوار سبز)
 
-        // انتخاب ناحیه مستطیلی برای منطقه انتخاب‌شده کاربر
         switch (universityLocation) {
             case "شمال":
-                zone = new Rectangle(panelWidth / 3, 0, panelWidth / 3, panelHeight / 4);
+                zone = new Rectangle(panelWidth / 3, topOffset, panelWidth / 3, panelHeight / 4);
                 break;
             case "جنوب":
-                zone = new Rectangle(panelWidth / 3, 3 * panelHeight / 4, panelWidth / 3, panelHeight / 4);
+                zone = new Rectangle(panelWidth / 3, 3 * panelHeight / 4, panelWidth / 3, panelHeight / 4 - 10);
                 break;
             case "شرق":
                 zone = new Rectangle(3 * panelWidth / 4, panelHeight / 3, panelWidth / 4 - 10, panelHeight / 3);
@@ -51,14 +49,13 @@ public class Universities {
                 zone = new Rectangle(panelWidth / 3, panelHeight / 3, panelWidth / 3, panelHeight / 3);
                 break;
             default:
-                zone = new Rectangle(50, 50, panelWidth - 100, panelHeight - 100); // ناحیه کلی پیش‌فرض
+                zone = new Rectangle(50, topOffset, panelWidth - 100, panelHeight - 100);
         }
 
         int maxAttempts = 1000;
         int x = 50, y = 50;
         boolean tooClose;
 
-        // تلاش برای یافتن موقعیتی بدون تداخل با دانشگاه‌های موجود
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             x = zone.x + rand.nextInt(Math.max(1, zone.width - 50)) + 25;
             y = zone.y + rand.nextInt(Math.max(1, zone.height - 50)) + 25;
@@ -78,7 +75,7 @@ public class Universities {
             }
         }
 
-        // در صورت نبود فضای کافی، تولید مختصات رندوم در همان منطقه بدون بررسی فاصله
+        // اگر جای امن پیدا نشد، موقعیت تصادفی در همان منطقه بدون بررسی فاصله تولید می‌شود
         x = zone.x + rand.nextInt(Math.max(1, zone.width - 50)) + 25;
         y = zone.y + rand.nextInt(Math.max(1, zone.height - 50)) + 25;
         return new Universities(name, universityLocation, startTime, FinishTime, x , y);
