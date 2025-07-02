@@ -1,32 +1,63 @@
 import java.util.*;
 
+/**
+ * این کلاس مسئول محاسبه درخت پوشای کمینه (Minimum Spanning Tree) با استفاده از الگوریتم Prim است.
+ * الگوریتم روی گراف غیرجهت‌دار با یال‌های دارای وزن اعمال می‌شود.
+ */
 public class MSTCalculator {
-    static List<UniPaths> computeMST(List<Universities> nodes, List<UniPaths> allEdges) {
-        List<UniPaths> mst = new ArrayList<>();
-        Map<String, String> parent = new HashMap<>();
 
-        for (Universities u : nodes) {
-            parent.put(u.getUniversityName(), u.getUniversityName());
-        }
+    /**
+     * اجرای الگوریتم Prim برای یافتن درخت پوشای کمینه بر اساس لیست دانشگاه‌ها و مسیرها.
+     * @param universities لیست گره‌ها (دانشگاه‌ها)
+     * @param allPaths لیست یال‌های موجود بین دانشگاه‌ها
+     * @return لیست یال‌هایی که در MST قرار گرفته‌اند
+     */
+    public static List<UniPaths> computeMST(List<Universities> universities, List<UniPaths> allPaths) {
+        List<UniPaths> mst = new ArrayList<>(); // خروجی نهایی MST
 
-        allEdges.sort(Comparator.comparingInt(UniPaths::getCost));
+        if (universities.isEmpty()) return mst;
 
-        for (UniPaths edge : allEdges) {
-            String root1 = find(parent, edge.getStartLocation());
-            String root2 = find(parent, edge.getEndLocation());
-            if (!root1.equals(root2)) {
-                edge.setInMST(true);
-                mst.add(edge);
-                parent.put(root1, root2);
+        Set<String> visited = new HashSet<>(); // نگهداری دانشگاه‌هایی که در MST هستند
+        PriorityQueue<UniPaths> pq = new PriorityQueue<>(Comparator.comparingInt(UniPaths::getCost));
+
+        String start = universities.get(0).getUniversityName(); // شروع از اولین دانشگاه
+        visited.add(start);
+
+        // همه یال‌هایی که از نود شروع به سایر نودها می‌رسند را وارد صف اولویت می‌کنیم
+        for (UniPaths path : allPaths) {
+            if (path.getStartLocation().equals(start) || path.getEndLocation().equals(start)) {
+                pq.offer(path);
             }
         }
-        return mst;
-    }
 
-    private static String find(Map<String, String> parent, String node) {
-        if (!parent.get(node).equals(node)) {
-            parent.put(node, find(parent, parent.get(node)));
+        // اجرای الگوریتم Prim
+        while (!pq.isEmpty() && visited.size() < universities.size()) {
+            UniPaths path = pq.poll();
+            String u = path.getStartLocation();
+            String v = path.getEndLocation();
+
+            // پیدا کردن یال‌هایی که یکی از گره‌ها در مجموعه بازدید شده است ولی دیگری نه
+            if (visited.contains(u) && !visited.contains(v)) {
+                visited.add(v);
+                mst.add(path);
+            } else if (visited.contains(v) && !visited.contains(u)) {
+                visited.add(u);
+                mst.add(path);
+            } else {
+                continue; // یال باعث ایجاد حلقه می‌شود → صرف‌نظر می‌کنیم
+            }
+
+            // افزودن یال‌های جدید از گره تازه وارد شده به صف اولویت
+            for (UniPaths edge : allPaths) {
+                if ((edge.getStartLocation().equals(u) && !visited.contains(edge.getEndLocation())) ||
+                        (edge.getEndLocation().equals(u) && !visited.contains(edge.getStartLocation())) ||
+                        (edge.getStartLocation().equals(v) && !visited.contains(edge.getEndLocation())) ||
+                        (edge.getEndLocation().equals(v) && !visited.contains(edge.getStartLocation()))) {
+                    pq.offer(edge);
+                }
+            }
         }
-        return parent.get(node);
+
+        return mst;
     }
 }

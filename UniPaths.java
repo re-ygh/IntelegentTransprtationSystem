@@ -1,62 +1,53 @@
-public class UniPaths {
+import java.io.Serializable;
+
+/**
+ * این کلاس نمایانگر مسیر (یال) بین دو دانشگاه است
+ * شامل اطلاعاتی مثل زمان حرکت، زمان پایان، هزینه، ظرفیت و نام دو دانشگاه متصل شده
+ */
+public class UniPaths implements Serializable {
     private int startTime;
     private int endTime;
     private int cost;
     private int capacity;
     private String startLocation;
     private String endLocation;
-    private boolean isInMST ; // برای رنگ زرد
-    private boolean random;
+    private boolean isRandom; // مشخص می‌کند آیا یال به‌صورت خودکار تولید شده یا دستی
 
-    UniPaths(int startTime, int endTime, int cost, int capacity, String startLocation, String endLocation , boolean random) {
+    public UniPaths(int startTime, int endTime, int cost, int capacity,
+                    String startLocation, String endLocation, boolean isRandom) {
         this.startTime = startTime;
         this.endTime = endTime;
         this.cost = cost;
         this.capacity = capacity;
         this.startLocation = startLocation;
         this.endLocation = endLocation;
-        isInMST = false;
-        this.random = random;
+        this.isRandom = isRandom;
     }
 
-    public boolean isRandom() {
-        return random;
-    }
-
-    public void setRandom(boolean random) {
-        this.random = random;
-    }
+    // متدهای دسترسی به فیلدها (getter و setter)
 
     public int getStartTime() {
         return startTime;
-    }
-
-    public boolean isInMST() {
-        return isInMST;
-    }
-
-    public void setInMST(boolean inMST) {
-        isInMST = inMST;
     }
 
     public void setStartTime(int startTime) {
         this.startTime = startTime;
     }
 
-    public String getEndLocation() {
-        return endLocation;
+    public int getEndTime() {
+        return endTime;
     }
 
-    public void setEndLocation(String endLocation) {
-        this.endLocation = endLocation;
+    public void setEndTime(int endTime) {
+        this.endTime = endTime;
     }
 
-    public String getStartLocation() {
-        return startLocation;
+    public int getCost() {
+        return cost;
     }
 
-    public void setStartLocation(String startLocation) {
-        this.startLocation = startLocation;
+    public void setCost(int cost) {
+        this.cost = cost;
     }
 
     public int getCapacity() {
@@ -67,20 +58,32 @@ public class UniPaths {
         this.capacity = capacity;
     }
 
-    public int getCost() {
-        return cost;
+    public String getStartLocation() {
+        return startLocation;
     }
 
-
-    public void setCost(int cost) {
-        this.cost = cost;
+    public void setStartLocation(String startLocation) {
+        this.startLocation = startLocation;
     }
 
-    public int getEndTime() {
-        return endTime;
+    public String getEndLocation() {
+        return endLocation;
     }
 
-    public void setEndTime(int endTime) {
-        this.endTime = endTime;
+    public void setEndLocation(String endLocation) {
+        this.endLocation = endLocation;
+    }
+
+    public boolean isRandom() {
+        return isRandom;
+    }
+
+    public void setRandom(boolean random) {
+        isRandom = random;
+    }
+
+    @Override
+    public String toString() {
+        return startLocation + " -> " + endLocation + " | Cost: " + cost;
     }
 }
