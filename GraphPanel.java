@@ -16,9 +16,52 @@ public class GraphPanel extends JPanel {
         this.universityPositions = universityPositions;
         this.universities = universities;
         setBackground(new Color(147, 196, 151)); // بک‌گراند سیاه
+        setupReachabilityButton(); // تنظیم دکمه بررسی اتصال
     }
 
 
+    // اضافه کردن دکمه برای بررسی ارتباط دو دانشگاه با حداکثر ۲ گام
+    private void setupReachabilityButton() {
+        JButton reachButton = new JButton("بررسی ارتباط دو دانشگاه (حداکثر ۲ گام)");
+        reachButton.addActionListener(e -> showReachabilityDialog()); // تنظیم اکشن کلیک
+
+        this.setLayout(new BorderLayout());
+        JPanel topPanel = new JPanel();
+        topPanel.add(reachButton); // افزودن دکمه به پنل بالا
+        this.add(topPanel, BorderLayout.NORTH); // افزودن پنل بالا به بخش شمالی رابط گرافیکی
+    }
+
+    // نمایش دیالوگ برای انتخاب دو دانشگاه و بررسی اتصال
+    private void showReachabilityDialog() {
+        // گرفتن اسامی دانشگاه‌ها برای نمایش در ComboBox
+        String[] uniNames = universities.stream().map(Universities::getUniversityName).toArray(String[]::new);
+
+        // ساخت ComboBox برای انتخاب دانشگاه مبدأ و مقصد
+        JComboBox<String> startCombo = new JComboBox<>(uniNames);
+        JComboBox<String> targetCombo = new JComboBox<>(uniNames);
+
+        // پنل ورودی با دو لیبل و دو ComboBox
+        JPanel panel = new JPanel(new GridLayout(2, 2));
+        panel.add(new JLabel("دانشگاه مبدأ:"));
+        panel.add(startCombo);
+        panel.add(new JLabel("دانشگاه مقصد:"));
+        panel.add(targetCombo);
+
+        // نمایش دیالوگ تایید برای دریافت انتخاب‌ها
+        int result = JOptionPane.showConfirmDialog(null, panel, "بررسی اتصال با حداکثر ۲ گام", JOptionPane.OK_CANCEL_OPTION);
+        if (result == JOptionPane.OK_OPTION) {
+            String start = (String) startCombo.getSelectedItem();
+            String target = (String) targetCombo.getSelectedItem();
+
+            // استفاده از کلاس BFS برای بررسی اتصال با حداکثر دو گام
+            boolean reachable = BFSDepth2Checker.isReachableWithin2Steps(start, target, edgeList);
+            if (reachable) {
+                JOptionPane.showMessageDialog(this, "اتصال برقرار است (در ۲ گام یا کمتر)", "نتیجه", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "اتصالی وجود ندارد یا بیش از ۲ گام نیاز است", "نتیجه", JOptionPane.WARNING_MESSAGE);
+            }
+        }
+    }
 
     @Override
     protected void paintComponent(Graphics g) {
