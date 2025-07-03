@@ -234,6 +234,13 @@ public class main {
                             "خطا", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
+                //زمان شروع و پایان نمیتوانند یکی باشند
+                if (startTime == endTime) {
+                    JOptionPane.showMessageDialog(panel,
+                            "زمان شروع و پایان نمیتوانند یکی باشند.",
+                            "خطا", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
                 // اعتبارسنجی ترتیب زمانی
                 if (endTime < startTime) {
                     JOptionPane.showMessageDialog(panel,

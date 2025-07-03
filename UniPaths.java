@@ -14,8 +14,7 @@ public class UniPaths implements Serializable {
  private String endLocation;
  private boolean isRandom;        // مشخص می‌کند آیا یال به‌صورت خودکار تولید شده یا دستی
  private int remainingCapacity;
- // فیلد جدید برای مشخص کردن اینکه آیا باید یال به‌صورت قرمز (هایلایت) رسم شود
- private boolean highlighted = false;
+ private boolean highlighted = false;  // هایلایت (قرمز) برای مسیر نهایی
 
  public UniPaths(int startTime, int endTime, int cost, int capacity,
                  String startLocation, String endLocation, boolean isRandom, int remainingCapacity) {
@@ -29,7 +28,7 @@ public class UniPaths implements Serializable {
   this.remainingCapacity = remainingCapacity;
  }
 
- // متدهای دسترسی (getter / setter)
+ // getter / setterها
 
  public int getStartTime() { return startTime; }
  public void setStartTime(int startTime) { this.startTime = startTime; }
@@ -52,33 +51,28 @@ public class UniPaths implements Serializable {
  public boolean isRandom() { return isRandom; }
  public void setRandom(boolean random) { isRandom = random; }
 
- // متدهای دسترسی به فیلد هایلایت
+ public int getRemainingCapacity() { return remainingCapacity; }
+ public void setRemainingCapacity(int remainingCapacity) { this.remainingCapacity = remainingCapacity; }
+
  public boolean isHighlighted() { return highlighted; }
  public void setHighlighted(boolean highlighted) { this.highlighted = highlighted; }
 
  @Override
  public String toString() {
-  return startLocation + " -> " + endLocation + " | Cost: " + cost;
- }
-
- public int getRemainingCapacity() {
-  return remainingCapacity;
- }
-
- public void setRemainingCapacity(int remainingCapacity) {
-  this.remainingCapacity = remainingCapacity;
+  return startLocation + " -> " + endLocation + " | Cost: " + cost +
+          " | Time: " + startTime + "–" + endTime;
  }
 
  /**
   * محاسبه و انتخاب کوتاه‌ترین مسیر از src به dest بر اساس
-  * کمترین نسبت (cost / (endTime - startTime))
-  * و هایلایت (قرمز) کردن یال‌های مسیر نهایی.
-  * اگر یالی ظرفیتش صفر یا منفی باشد، آن را موقّتاً حذف کرده
-  * و دوباره الگوریتم را اجرا می‌کند تا مسیری با ظرفیت کافی بیابد.
+  * کمترین مجموع (هزینه + زمان) و هایلایت کردن یال‌های مسیر.
+  * اگر یالی ظرفیتش صفر یا منفی باشد، آن را حذف و مجدداً الگوریتم را اجرا می‌کند.
   *
-  * @param allPaths لیست تمام یال‌های موجود در گراف
-  * @param src      نام دانشگاه مبدا
-  * @param dest     نام دانشگاه مقصد
+  * @param allPaths      لیست همه‌ی یال‌ها
+  * @param src           نام دانشگاه مبدأ
+  * @param dest          نام دانشگاه مقصد
+  * @param reduceCapacity اگر true باشد، پس از انتخاب مسیر، ظرفیت هر یال یک واحد کاهش می‌یابد
+  * @return true اگر مسیر یافت شود، false در غیر این صورت
   */
  public static Boolean DijkstraShortestPath(List<UniPaths> allPaths, String src, String dest, boolean reduceCapacity) {
   // ۱. پاکسازی هایلایت‌های قبلی
@@ -86,46 +80,44 @@ public class UniPaths implements Serializable {
    p.setHighlighted(false);
   }
 
-  // ۲. لیست کاری برای حذف یال‌های پر (capacity <= 0)
+  // ۲. کپی لیست برای حذف موقت یال‌های بدون ظرفیت
   List<UniPaths> workingPaths = new ArrayList<>(allPaths);
 
   while (true) {
-   // ۳. ساخت نقشه مجاورت (Adjacency List)
+   // ۳. ساخت لیست مجاورت
    Map<String, List<UniPaths>> adj = new HashMap<>();
    for (UniPaths p : workingPaths) {
-    if (p.getCapacity() <= 0) continue;               // نادیده گرفتن یال‌های پر
+    if (p.getCapacity() <= 0) continue;
     adj.computeIfAbsent(p.getStartLocation(), k -> new ArrayList<>()).add(p);
    }
 
-   // ۴. آماده‌سازی ساختارهای Dijkstra
-   Map<String, Double> dist = new HashMap<>();           // فاصله‌ی تجمعی
-   Map<String, UniPaths> prevEdge = new HashMap<>();     // یال قبلی برای بازسازی مسیر
+   // ۴. مقداردهی ساختار Dijkstra
+   Map<String, Double> dist = new HashMap<>();
+   Map<String, UniPaths> prevEdge = new HashMap<>();
    Set<String> visited = new HashSet<>();
 
-   // مقداردهی اولیه فاصله‌ها
    for (String node : adj.keySet()) {
     dist.put(node, Double.POSITIVE_INFINITY);
    }
    dist.put(src, 0.0);
 
-   // صف اولویت بر اساس dist
    PriorityQueue<String> pq = new PriorityQueue<>(Comparator.comparing(dist::get));
    pq.add(src);
 
-   // ۵. اجرای الگوریتم Dijkstra با وزن هر یال = cost / duration
+   // ۵. اجرای Dijkstra با وزن = cost + duration
    while (!pq.isEmpty()) {
     String u = pq.poll();
     if (visited.contains(u)) continue;
     visited.add(u);
-    if (u.equals(dest)) break;  // اگر به مقصد رسیدیم، متوقف می‌شویم
+    if (u.equals(dest)) break;
 
     double uDist = dist.getOrDefault(u, Double.POSITIVE_INFINITY);
-    List<UniPaths> edges = adj.getOrDefault(u, Collections.emptyList());
-    for (UniPaths edge : edges) {
+    for (UniPaths edge : adj.getOrDefault(u, Collections.emptyList())) {
      String v = edge.getEndLocation();
      int duration = edge.getEndTime() - edge.getStartTime();
-     if (duration <= 0) continue;  // نادیده گرفتن یال‌های بی‌معنی
-     double weight = edge.getCost() / (double) duration;
+     if (duration <= 0) continue;  // زمان نامعتبر
+     // اینجا به جای نسبت، از جمع هزینه و زمان استفاده می‌کنیم
+     double weight = edge.getCost() + duration;
      double alt = uDist + weight;
      if (alt < dist.getOrDefault(v, Double.POSITIVE_INFINITY)) {
       dist.put(v, alt);
@@ -135,10 +127,9 @@ public class UniPaths implements Serializable {
     }
    }
 
-   // ۶. بازسازی مسیر از dest به src
+   // ۶. بازسازی مسیر
    if (!prevEdge.containsKey(dest)) {
-    // مسیر شناخته‌شده‌ای وجود ندارد
-    return false;
+    return false;  // مسیری وجود ندارد
    }
    List<UniPaths> shortestPath = new ArrayList<>();
    String cur = dest;
@@ -149,28 +140,29 @@ public class UniPaths implements Serializable {
    }
    Collections.reverse(shortestPath);
 
-   // ۷. بررسی ظرفیت یال‌ها در مسیر
+   // ۷. حذف یال‌های فاقد ظرفیت در مسیر
    boolean allHaveCapacity = true;
    for (UniPaths edge : shortestPath) {
     if (edge.remainingCapacity <= 0) {
-     // حذف یال فاقد ظرفیت از گراف کاری و تکرار الگوریتم
      workingPaths.remove(edge);
      allHaveCapacity = false;
     }
    }
    if (!allHaveCapacity) {
-    continue;
+    continue;  // دوباره تلاش کن
    }
 
-   // ۸. هایلایت (قرمز) کردن یال‌های مسیر نهایی
+   // ۸. هایلایت و کاهش ظرفیت (در صورت نیاز)
    for (UniPaths edge : shortestPath) {
-      edge.setHighlighted(true);
-         if (reduceCapacity){
-           edge.setRemainingCapacity(edge.getRemainingCapacity() - 1);
-         }
-      }
-   break;  // مسیر نهایی پیدا و هایلایت شد → خروج
+    edge.setHighlighted(true);
+    if (reduceCapacity) {
+     edge.setRemainingCapacity(edge.getRemainingCapacity() - 1);
+    }
+   }
+
+   break;
   }
+
   return true;
  }
 }

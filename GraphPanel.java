@@ -122,6 +122,14 @@ public class GraphPanel extends JPanel {
                             clearDragAndRepaint();
                             return;
                         }
+                        //زمان شروع و پایان نمیتوانند یکی باشند
+                        if (startTime == endTime) {
+                            JOptionPane.showMessageDialog(GraphPanel.this,
+                                    "زمان شروع و پایان نمیتوانند یکی باشند.",
+                                    "خطا", JOptionPane.ERROR_MESSAGE);
+                            clearDragAndRepaint();
+                            return;
+                        }
                         if (endTime < startTime) {
                             JOptionPane.showMessageDialog(GraphPanel.this,
                                     "زمان پایان نمی‌تواند کمتر از زمان شروع باشد.",
@@ -304,11 +312,16 @@ public class GraphPanel extends JPanel {
         DefaultListModel<String> model = new DefaultListModel<>();
         for (UniPaths p : paths) {
             model.addElement(String.format(
-                    "%s → %s  | هزینه: %d  | ظرفیت باقیمانده: %d",
-                    p.getStartLocation(), p.getEndLocation(),
-                    p.getCost(), p.getRemainingCapacity()
+                    "%s → %s  | هزینه: %d  | ظرفیت باقیمانده: %d  | زمان: %02d–%02d",
+                    p.getStartLocation(),
+                    p.getEndLocation(),
+                    p.getCost(),
+                    p.getRemainingCapacity(),
+                    p.getStartTime(),    // زمان شروع
+                    p.getEndTime()       // زمان پایان
             ));
         }
+
         JList<String> list = new JList<>(model);
         list.setVisibleRowCount(10);
         JScrollPane listScroll = new JScrollPane(list);
