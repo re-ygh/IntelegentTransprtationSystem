@@ -52,8 +52,14 @@ public class GraphPanel extends JPanel {
         this.add(topPanel, BorderLayout.NORTH);
     }
 
-    /** دیالوگ پیشنهاد مسیر و رزرو هوشمند با نمایش همزمان ورودی و لیست مسیرها */
+    /** دیالوگ پیشنهاد مسیر و رزرو هوشمند با سه گزینه */
     private void showSuggestionDialog() {
+        // ساخت دیالوگ سفارشی
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
+                "پیشنهاد مسیر و رزرو هوشمند", true);
+        dialog.setLayout(new BorderLayout(10, 10));
+
+        // ورودی دانشجو و مبدا/مقصد
         JTextField studentField = new JTextField(12);
         String[] uniNames = universities.stream()
                 .map(Universities::getUniversityName)
@@ -69,8 +75,9 @@ public class GraphPanel extends JPanel {
         inputPanel.add(new JLabel("دانشگاه مقصد:"));
         inputPanel.add(destCombo);
 
+        // لیست مسیرها
         DefaultListModel<String> model = new DefaultListModel<>();
-        for (UniPaths p : paths) {
+        for (UniPaths p : main.paths) {
             String line = String.format(
                     "%s → %s  | هزینه: %d  | ظرفیت باقیمانده: %d",
                     p.getStartLocation(), p.getEndLocation(), p.getCost(), p.getRemainingCapacity()
@@ -82,50 +89,81 @@ public class GraphPanel extends JPanel {
         JScrollPane listScroll = new JScrollPane(list);
         listScroll.setPreferredSize(new Dimension(500, 200));
 
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.add(inputPanel, BorderLayout.NORTH);
-        mainPanel.add(listScroll, BorderLayout.CENTER);
+        // پنل میانی
+        dialog.add(inputPanel, BorderLayout.NORTH);
+        dialog.add(listScroll, BorderLayout.CENTER);
 
-        int result = JOptionPane.showConfirmDialog(
-                this, mainPanel,
-                "پیشنهاد مسیر و رزرو هوشمند",
-                JOptionPane.OK_CANCEL_OPTION,
-                JOptionPane.PLAIN_MESSAGE
-        );
+        // دکمه‌ها
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton okButton = new JButton("تأیید");
+        JButton cancelButton = new JButton("انصراف");
+        JButton bestButton = new JButton("بهینه‌ترین مسیر بین مبدا و مقصد");
 
-        if (result == JOptionPane.OK_OPTION) {
-            String student = studentField.getText().trim();
-            String origin  = (String) originCombo.getSelectedItem();
-            String dest    = (String) destCombo.getSelectedItem();
+        buttonPanel.add(bestButton);
+        buttonPanel.add(okButton);
+        buttonPanel.add(cancelButton);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
 
-            if (student.isEmpty()) {
-                JOptionPane.showMessageDialog(this,
-                        "لطفاً نام دانشجو را وارد کنید.",
-                        "خطا", JOptionPane.ERROR_MESSAGE);
-            } else if (origin.equals(dest)) {
-                JOptionPane.showMessageDialog(this,
-                        "دانشگاه مبدا و مقصد نمی‌توانند یکسان باشند.",
+        // عملکرد دکمه بهینه‌ترین مسیر
+        bestButton.addActionListener(e -> {
+            String origin = (String) originCombo.getSelectedItem();
+            String dest   = (String) destCombo.getSelectedItem();
+            if (origin == null || dest == null || origin.equals(dest)) {
+                JOptionPane.showMessageDialog(dialog,
+                        "دانشگاه مبدا و مقصد باید انتخاب شده و متفاوت باشند.",
                         "خطا", JOptionPane.ERROR_MESSAGE);
             } else {
-                // مسیریابی با دایکسترا و هایلایت یال‌ها
-                boolean found = UniPaths.DijkstraShortestPath(paths, origin, dest);
+                // پاکسازی هایلایت قبلی
+                for (UniPaths p : paths) p.setHighlighted(false);
+                // مسیریابی بدون نیاز به نام دانشجو
+                //جای origin و dest رو عوض کردم چون برعکس داشتن کار میکردن الان نمیدونم جرا درست کار میکنن ولی میکنن
+                boolean found = UniPaths.DijkstraShortestPath(paths,  dest, origin, false);
                 if (!found) {
-                    JOptionPane.showMessageDialog(this,
+                    JOptionPane.showMessageDialog(dialog,
                             "مسیر مناسبی یافت نشد.",
                             "خطا", JOptionPane.WARNING_MESSAGE);
                 } else {
-                    // پس از پیدا شدن مسیر، repaint برای نمایش یال‌های قرمز
                     repaint();
-                    JOptionPane.showMessageDialog(this,
-                            "درخواست ثبت شد:\n" +
-                                    "دانشجو: " + student + "\n" +
-                                    "مبدا: "    + origin  + "\n" +
-                                    "مقصد: "    + dest,
-                            "ثبت پیشنهاد مسیر", JOptionPane.INFORMATION_MESSAGE
-                    );
+                    dialog.dispose();
                 }
             }
-        }
+        });
+
+        // عملکرد دکمه OK
+        okButton.addActionListener(e -> {
+            String student = studentField.getText().trim();
+            String origin  = (String) originCombo.getSelectedItem();
+            String dest    = (String) destCombo.getSelectedItem();
+            if (student.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog,
+                        "لطفاً نام دانشجو را وارد کنید.",
+                        "خطا", JOptionPane.ERROR_MESSAGE);
+            } else if (origin.equals(dest)) {
+                JOptionPane.showMessageDialog(dialog,
+                        "دانشگاه مبدا و مقصد نمی‌توانند یکسان باشند.",
+                        "خطا", JOptionPane.ERROR_MESSAGE);
+            } else {
+                // پاکسازی هایلایت قبلی
+                //جای origin و dest رو عوض کردم چون برعکس داشتن کار میکردن الان نمیدونم جرا درست کار میکنن ولی میکنن
+                for (UniPaths p : paths) p.setHighlighted(false);
+                boolean found = UniPaths.DijkstraShortestPath(paths, dest, origin, true);
+                if (!found) {
+                    JOptionPane.showMessageDialog(dialog,
+                            "مسیر مناسبی یافت نشد.",
+                            "خطا", JOptionPane.WARNING_MESSAGE);
+                } else {
+                    repaint();
+                    dialog.dispose();
+                }
+            }
+        });
+
+        // عملکرد دکمه Cancel
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 
     /** پنجره بررسی اتصال دو دانشگاه در حداکثر دو گام */

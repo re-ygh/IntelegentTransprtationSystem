@@ -80,7 +80,7 @@ public class UniPaths implements Serializable {
   * @param src      نام دانشگاه مبدا
   * @param dest     نام دانشگاه مقصد
   */
- public static Boolean DijkstraShortestPath(List<UniPaths> allPaths, String src, String dest) {
+ public static Boolean DijkstraShortestPath(List<UniPaths> allPaths, String src, String dest, boolean reduceCapacity) {
   // ۱. پاکسازی هایلایت‌های قبلی
   for (UniPaths p : allPaths) {
    p.setHighlighted(false);
@@ -164,9 +164,11 @@ public class UniPaths implements Serializable {
 
    // ۸. هایلایت (قرمز) کردن یال‌های مسیر نهایی
    for (UniPaths edge : shortestPath) {
-    edge.setHighlighted(true);
-    edge.setRemainingCapacity(edge.getRemainingCapacity() - 1);
-   }
+      edge.setHighlighted(true);
+         if (reduceCapacity){
+           edge.setRemainingCapacity(edge.getRemainingCapacity() - 1);
+         }
+      }
    break;  // مسیر نهایی پیدا و هایلایت شد → خروج
   }
   return true;
