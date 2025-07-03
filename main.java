@@ -253,29 +253,28 @@ public class main {
                                     p.getEndLocation().equals(to.getUniversityName())) ||
                                     (p.getStartLocation().equals(to.getUniversityName()) &&
                                             p.getEndLocation().equals(from.getUniversityName())))) {
-                        iter.remove();
-                        break;
+                                                    // ایجاد مسیر دستی جدید (مشکی)
+                                                    UniPaths path = new UniPaths(
+                                                            startTime, endTime, cost, capacity,
+                                                            from.getUniversityName(), to.getUniversityName(),
+                                                            false, capacity
+                                                    );
+
+                                                    boolean existsPath = paths.stream().anyMatch(p2 ->
+                                                            p2.getStartLocation().equals(path.getStartLocation()) &&
+                                                            p2.getEndLocation().equals(path.getEndLocation())
+                                                    );
+
+                                                     if (!existsPath) {
+                                                               paths.add(path);
+                                                               iter.remove();
+                                                     } else {
+                                                               JOptionPane.showMessageDialog(panel,
+                                                                "بین این دو دانشگاه یک مسیر قبلی وجود دارد.",
+                                                               "خطا", JOptionPane.WARNING_MESSAGE);
+                                                     }
+                            break;
                     }
-                }
-
-                // ایجاد مسیر دستی جدید (مشکی)
-                UniPaths path = new UniPaths(
-                        startTime, endTime, cost, capacity,
-                        from.getUniversityName(), to.getUniversityName(),
-                        false, capacity
-                );
-
-                boolean existsPath = paths.stream().anyMatch(p ->
-                        p.getStartLocation().equals(path.getStartLocation()) &&
-                                p.getEndLocation().equals(path.getEndLocation())
-                );
-
-                if (!existsPath) {
-                    paths.add(path);
-                } else {
-                    JOptionPane.showMessageDialog(panel,
-                            "بین این دو دانشگاه یک مسیر قبلی وجود دارد.",
-                            "خطا", JOptionPane.WARNING_MESSAGE);
                 }
 
                 costField.setText("");
