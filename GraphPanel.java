@@ -81,7 +81,8 @@ public class GraphPanel extends JPanel {
                         // چک وجود یال در همان جهت
                         boolean existsDirected = paths.stream().anyMatch(p ->
                                 p.getStartLocation().equals(dragStartNode) &&
-                                        p.getEndLocation().equals(endNode)
+                                        p.getEndLocation().equals(endNode) &&
+                                                !p.isRandom()
                         );
                         if (existsDirected) {
                             JOptionPane.showMessageDialog(GraphPanel.this,

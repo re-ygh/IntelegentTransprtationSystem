@@ -1,4 +1,3 @@
-// main.java
 import javax.swing.*;
 import java.awt.*;
 import java.util.*;
@@ -256,27 +255,11 @@ public class main {
                                 p.getEndLocation().equals(newPath.getEndLocation())
                 );
 
-                if (existsPath) {
+                if (existsPath && !(newPath.isRandom())) {
                     JOptionPane.showMessageDialog(panel,
                             "بین این دو دانشگاه یک مسیر قبلی وجود دارد.",
                             "خطا", JOptionPane.WARNING_MESSAGE);
                 } else {
-                    // جست‌وجوی اولین مسیر پیشنهادی (random) بین این دو (در هر جهت)
-                    UniPaths randomToRemove = null;
-                    for (UniPaths p : paths) {
-                        if (p.isRandom() &&
-                                ((p.getStartLocation().equals(from.getUniversityName()) &&
-                                        p.getEndLocation().equals(to.getUniversityName())) ||
-                                        (p.getStartLocation().equals(to.getUniversityName()) &&
-                                                p.getEndLocation().equals(from.getUniversityName())))) {
-                            randomToRemove = p;
-                            break;
-                        }
-                    }
-                    // حذف مسیر پیشنهادی در صورت وجود
-                    if (randomToRemove != null) {
-                        paths.remove(randomToRemove);
-                    }
                     // اضافه کردن مسیر دستی
                     paths.add(newPath);
                 }
