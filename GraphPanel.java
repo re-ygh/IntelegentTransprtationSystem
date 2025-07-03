@@ -13,12 +13,12 @@ import java.util.List;
 public class GraphPanel extends JPanel {
     private static final int NODE_RADIUS = 10;
 
-    private List<UniPaths> paths;                       // لیست یال‌ها
-    private Map<String, Point> universityPositions;     // مختصات نودها
-    private List<Universities> universities;            // اطلاعات نودها
-    private List<UniPaths> mstEdges = null;             // یال‌های MST
+    private List<UniPaths> paths;                   // لیست یال‌ها
+    private Map<String, Point> universityPositions; // مختصات نودها
+    private List<Universities> universities;        // اطلاعات نودها
+    private List<UniPaths> mstEdges = null;         // یال‌های MST
 
-    // برای رسم پیش‌نمایش درگ
+    // برای درگ موس
     private String dragStartNode = null;
     private Point  dragCurrentPoint = null;
 
@@ -32,16 +32,14 @@ public class GraphPanel extends JPanel {
         setupMouseListeners();
     }
 
-    /** ساخت و قرار دادن دکمه‌های بالای پنل */
+    /** دکمه‌های بالای پنل را می‌سازد */
     private void setupTopButtons() {
         JButton reachButton = new JButton("بررسی ارتباط دو دانشگاه (حداکثر ۲ گام)");
         reachButton.addActionListener(e -> showReachabilityDialog());
 
         JButton mstButton = new JButton("نمایش MST");
         mstButton.addActionListener(e -> {
-            // پاک‌سازی هایلایت قبلی
             for (UniPaths p : paths) p.setHighlighted(false);
-            // محاسبه و نمایش MST
             this.mstEdges = MSTCalculator.computeMST(universities, paths);
             repaint();
         });
@@ -59,18 +57,16 @@ public class GraphPanel extends JPanel {
         add(topPanel, BorderLayout.NORTH);
     }
 
-    /** تنظیم ماوس برای درگ و کشیدن یال */
+    /** گوش‌کننده‌های ماوس برای درگ و رهاسازی جهت کشیدن یال */
     private void setupMouseListeners() {
         MouseAdapter ma = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                // اگر روی نود کلیک شد، شروع درگ را ذخیره کن
                 dragStartNode = findNodeAt(e.getPoint());
                 dragCurrentPoint = dragStartNode != null ? e.getPoint() : null;
             }
             @Override
             public void mouseDragged(MouseEvent e) {
-                // به‌روزرسانی نقطه‌ی جاری و repaint برای پیش‌نمایش
                 if (dragStartNode != null) {
                     dragCurrentPoint = e.getPoint();
                     repaint();
@@ -80,69 +76,78 @@ public class GraphPanel extends JPanel {
             public void mouseReleased(MouseEvent e) {
                 if (dragStartNode != null) {
                     String endNode = findNodeAt(e.getPoint());
-                    // فقط اگر روی نود دوم رها شد و متفاوت بود
+                    // فقط اگر رهاسازی روی نود دوم بود و متفاوت بود
                     if (endNode != null && !endNode.equals(dragStartNode)) {
-                        // چک تکراری بودن یال در همان جهت
+                        // چک وجود یال در همان جهت
                         boolean existsDirected = paths.stream().anyMatch(p ->
                                 p.getStartLocation().equals(dragStartNode) &&
                                         p.getEndLocation().equals(endNode)
                         );
                         if (existsDirected) {
                             JOptionPane.showMessageDialog(GraphPanel.this,
-                                    "بین این دو دانشگاه یک مسیر در همان جهت وجود دارد.",
+                                    "بین این دو دانشگاه در همان جهت مسیر وجود دارد.",
                                     "خطا", JOptionPane.WARNING_MESSAGE);
-                            clearDragAndRepaint(); return;
+                            clearDragAndRepaint();
+                            return;
                         }
 
-                        // پرس‌و‌جوی مرحله‌ای از کاربر با اعتبارسنجی آنی
-                        Integer cost      = promptForInteger("هزینه یال جدید از " + dragStartNode + " به " + endNode + " را وارد کنید:");
+                        // دریافت مرحله‌ای مقادیر از کاربر با اعتبارسنجی آنی
+                        Integer cost = promptForInteger(
+                                "هزینه یال جدید از " + dragStartNode + " به " + endNode + " را وارد کنید:");
                         if (cost == null) { clearDragAndRepaint(); return; }
 
-                        Integer capacity  = promptForInteger("ظرفیت یال جدید را وارد کنید:");
+                        Integer capacity = promptForInteger(
+                                "ظرفیت یال جدید را وارد کنید:");
                         if (capacity == null) { clearDragAndRepaint(); return; }
 
-                        Integer startTime = promptForInteger("زمان شروع یال جدید (0–24):");
+                        Integer startTime = promptForInteger(
+                                "زمان شروع یال جدید (0–24):");
                         if (startTime == null) { clearDragAndRepaint(); return; }
                         if (startTime < 0 || startTime > 24) {
                             JOptionPane.showMessageDialog(GraphPanel.this,
                                     "زمان شروع باید بین ۰ تا ۲۴ باشد.",
                                     "خطا", JOptionPane.ERROR_MESSAGE);
-                            clearDragAndRepaint(); return;
+                            clearDragAndRepaint();
+                            return;
                         }
 
-                        Integer endTime   = promptForInteger("زمان پایان یال جدید (0–24):");
+                        Integer endTime = promptForInteger(
+                                "زمان پایان یال جدید (0–24):");
                         if (endTime == null) { clearDragAndRepaint(); return; }
                         if (endTime < 0 || endTime > 24) {
                             JOptionPane.showMessageDialog(GraphPanel.this,
                                     "زمان پایان باید بین ۰ تا ۲۴ باشد.",
                                     "خطا", JOptionPane.ERROR_MESSAGE);
-                            clearDragAndRepaint(); return;
+                            clearDragAndRepaint();
+                            return;
                         }
                         if (endTime < startTime) {
                             JOptionPane.showMessageDialog(GraphPanel.this,
                                     "زمان پایان نمی‌تواند کمتر از زمان شروع باشد.",
                                     "خطا", JOptionPane.ERROR_MESSAGE);
-                            clearDragAndRepaint(); return;
+                            clearDragAndRepaint();
+                            return;
                         }
 
-                        // در نهایت اضافه کردن یال جدید
+                        // حذف اولین مسیر پیشنهادی (random) در همان جهت
+                        Iterator<UniPaths> iter = paths.iterator();
+                        while (iter.hasNext()) {
+                            UniPaths p = iter.next();
+                            if (p.isRandom() &&
+                                    p.getStartLocation().equals(dragStartNode) &&
+                                    p.getEndLocation().equals(endNode)) {
+                                iter.remove();
+                                break;
+                            }
+                        }
+
+                        // در نهایت اضافه کردن یال دستی جدید
                         UniPaths newPath = new UniPaths(
                                 startTime, endTime, cost, capacity,
                                 dragStartNode, endNode,
                                 false, capacity
                         );
                         paths.add(newPath);
-                    }
-                    // حذف اولین مسیر پیشنهادی (random) بین این دو نود (هر جهت)
-                    Iterator<UniPaths> iter = paths.iterator();
-                    while (iter.hasNext()) {
-                        UniPaths p = iter.next();
-                        if (p.isRandom() &&
-                                ((p.getStartLocation().equals(dragStartNode) && p.getEndLocation().equals(endNode)) ||
-                                        (p.getStartLocation().equals(endNode) && p.getEndLocation().equals(dragStartNode)))) {
-                            iter.remove();
-                            break;
-                        }
                     }
                 }
                 clearDragAndRepaint();
@@ -159,11 +164,14 @@ public class GraphPanel extends JPanel {
         repaint();
     }
 
-    /** نمایش دیالوگ تکرارشونده برای دریافت عدد (برگشت null=انصراف) */
+    /**
+     * نمایش دیالوگ برای ورود عددی با اعتبارسنجی آنی.
+     * @return مقدار عدد صحیح یا null در صورت انصراف.
+     */
     private Integer promptForInteger(String message) {
         while (true) {
             String input = JOptionPane.showInputDialog(GraphPanel.this, message);
-            if (input == null) return null; // کاربر انصراف زد
+            if (input == null) return null;
             try {
                 return Integer.parseInt(input.trim());
             } catch (NumberFormatException ex) {
@@ -174,7 +182,7 @@ public class GraphPanel extends JPanel {
         }
     }
 
-    /** پیدا کردن نودی که روی آن کلیک شده است */
+    /** بررسی می‌کند نقطه روی کدام نود است (بردارای NODE_RADIUS) */
     private String findNodeAt(Point p) {
         for (Map.Entry<String, Point> entry : universityPositions.entrySet()) {
             if (entry.getValue().distance(p) <= NODE_RADIUS) {
@@ -190,7 +198,7 @@ public class GraphPanel extends JPanel {
         Graphics2D g2 = (Graphics2D) g;
         g2.setStroke(new BasicStroke(2));
 
-        // شمارش مسیرها بین هر جفت نود (بدون جهت)
+        // شمارش مسیرها بین هر جفت نود (بدون جهت) برای منحنی کردن مسیر دوم
         Map<String, Integer> pairCount = new HashMap<>();
         for (UniPaths p : paths) {
             String u = p.getStartLocation(), v = p.getEndLocation();
@@ -198,7 +206,7 @@ public class GraphPanel extends JPanel {
             pairCount.put(key, pairCount.getOrDefault(key, 0) + 1);
         }
 
-        // رسم مسیرها
+        // رسم همه مسیرها
         for (UniPaths p : paths) {
             Point a = universityPositions.get(p.getStartLocation());
             Point b = universityPositions.get(p.getEndLocation());
@@ -208,7 +216,7 @@ public class GraphPanel extends JPanel {
             String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
             int count = pairCount.getOrDefault(key, 0);
 
-            // رنگ یال
+            // تعیین رنگ
             if (p.isHighlighted()) {
                 g2.setColor(Color.RED);
             } else if (mstEdges != null && mstEdges.contains(p)) {
@@ -219,7 +227,7 @@ public class GraphPanel extends JPanel {
                 g2.setColor(Color.BLACK);
             }
 
-            // اگر دو مسیر مخالف جهت وجود دارد، مسیر با u>v منحنی باشد
+            // اگر دو مسیر مخالف جهت وجود دارد، مسیر با u>v منحنی رسم شود
             if (count > 1 && u.compareTo(v) > 0) {
                 double x1 = a.x, y1 = a.y, x2 = b.x, y2 = b.y;
                 double mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
@@ -244,7 +252,7 @@ public class GraphPanel extends JPanel {
             }
         }
 
-        // رسم پیش‌نمایش یال در حال درگ
+        // رسم پیش‌نمایش درگ
         if (dragStartNode != null && dragCurrentPoint != null) {
             Point a = universityPositions.get(dragStartNode);
             if (a != null) {
@@ -266,9 +274,11 @@ public class GraphPanel extends JPanel {
             if (pt == null) continue;
             Color c = colors.getOrDefault(uObj.getUniversityLocation(), Color.GREEN);
             g2.setColor(c);
-            g2.fillOval(pt.x - NODE_RADIUS, pt.y - NODE_RADIUS, NODE_RADIUS*2, NODE_RADIUS*2);
+            g2.fillOval(pt.x - NODE_RADIUS, pt.y - NODE_RADIUS,
+                    NODE_RADIUS*2, NODE_RADIUS*2);
             g2.setColor(Color.BLACK);
-            g2.drawString(uObj.getUniversityName(), pt.x + NODE_RADIUS + 2, pt.y);
+            g2.drawString(uObj.getUniversityName(),
+                    pt.x + NODE_RADIUS + 2, pt.y);
         }
     }
 

@@ -39,7 +39,6 @@ public class main {
         mainPanel.add(createBuildGraphPage(), "page1");
         mainPanel.add(createPage("صفحه نمایش گراف و زیرساخت"), "page2");
         mainPanel.add(createPage("صفحه سفر چندمقصدی (TSP)"), "page5");
-        // صفحه پیشنهاد مسیر دیگر در منوی اصلی نیست—دسترسی از GraphPanel
 
         JScrollPane scrollPane = new JScrollPane(mainPanel,
                 JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
@@ -169,10 +168,10 @@ public class main {
         panel.add(scrollPanel, BorderLayout.EAST);
         // —— پایان فرم ورودی ——
 
-        // جایگذاری GraphPanel (شامل دکمه‌های MST، Reachability و Suggest)
+        // جایگذاری GraphPanel
         panel.add(graphPanel, BorderLayout.CENTER);
 
-        // عملکرد دکمه افزودن دانشگاه
+        // اضافه کردن دانشگاه
         addUniBtn.addActionListener(e -> {
             String name   = nameField.getText().trim();
             String region = (String) regionField.getSelectedItem();
@@ -212,7 +211,7 @@ public class main {
             graphPanel.repaint();
         });
 
-        // عملکرد دکمه افزودن مسیر دستی بین دو دانشگاه
+        // اضافه کردن مسیر دستی بین دو دانشگاه (رفع ConcurrentModificationException)
         addPathBtn.addActionListener(e -> {
             Universities from = (Universities) fromBox.getSelectedItem();
             Universities to   = (Universities) toBox.getSelectedItem();
@@ -244,39 +243,45 @@ public class main {
                     return;
                 }
 
-                // حذف مسیر پیشنهادی (طوسی) قبلی بین این دو
-                Iterator<UniPaths> iter = paths.iterator();
-                while (iter.hasNext()) {
-                    UniPaths p = iter.next();
-                    if (p.isRandom() &&
-                            ((p.getStartLocation().equals(from.getUniversityName()) &&
-                                    p.getEndLocation().equals(to.getUniversityName())) ||
-                                    (p.getStartLocation().equals(to.getUniversityName()) &&
-                                            p.getEndLocation().equals(from.getUniversityName())))) {
-                                                    // ایجاد مسیر دستی جدید (مشکی)
-                                                    UniPaths path = new UniPaths(
-                                                            startTime, endTime, cost, capacity,
-                                                            from.getUniversityName(), to.getUniversityName(),
-                                                            false, capacity
-                                                    );
+                // ساخت آبجکت مسیر جدید
+                UniPaths newPath = new UniPaths(
+                        startTime, endTime, cost, capacity,
+                        from.getUniversityName(), to.getUniversityName(),
+                        false, capacity
+                );
 
-                                                    boolean existsPath = paths.stream().anyMatch(p2 ->
-                                                            p2.getStartLocation().equals(path.getStartLocation()) &&
-                                                            p2.getEndLocation().equals(path.getEndLocation())
-                                                    );
+                // چک تکراری بودن مسیر در همان جهت
+                boolean existsPath = paths.stream().anyMatch(p ->
+                        p.getStartLocation().equals(newPath.getStartLocation()) &&
+                                p.getEndLocation().equals(newPath.getEndLocation())
+                );
 
-                                                     if (!existsPath) {
-                                                               paths.add(path);
-                                                               iter.remove();
-                                                     } else {
-                                                               JOptionPane.showMessageDialog(panel,
-                                                                "بین این دو دانشگاه یک مسیر قبلی وجود دارد.",
-                                                               "خطا", JOptionPane.WARNING_MESSAGE);
-                                                     }
+                if (existsPath) {
+                    JOptionPane.showMessageDialog(panel,
+                            "بین این دو دانشگاه یک مسیر قبلی وجود دارد.",
+                            "خطا", JOptionPane.WARNING_MESSAGE);
+                } else {
+                    // جست‌وجوی اولین مسیر پیشنهادی (random) بین این دو (در هر جهت)
+                    UniPaths randomToRemove = null;
+                    for (UniPaths p : paths) {
+                        if (p.isRandom() &&
+                                ((p.getStartLocation().equals(from.getUniversityName()) &&
+                                        p.getEndLocation().equals(to.getUniversityName())) ||
+                                        (p.getStartLocation().equals(to.getUniversityName()) &&
+                                                p.getEndLocation().equals(from.getUniversityName())))) {
+                            randomToRemove = p;
                             break;
+                        }
                     }
+                    // حذف مسیر پیشنهادی در صورت وجود
+                    if (randomToRemove != null) {
+                        paths.remove(randomToRemove);
+                    }
+                    // اضافه کردن مسیر دستی
+                    paths.add(newPath);
                 }
 
+                // پاک‌سازی فیلدها و بازنقاشی
                 costField.setText("");
                 startTimeField.setText("");
                 endTimeField.setText("");
