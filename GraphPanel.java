@@ -1,3 +1,4 @@
+// GraphPanel.java
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -7,7 +8,8 @@ import java.util.List;
 
 /**
  * این کلاس نمای گرافیکی از گراف دانشگاهی را رسم می‌کند،
- * دکمه‌های نمایش MST، بررسی ارتباط و پیشنهاد مسیر/رزرو هوشمند را دارد،
+ * دکمه‌های نمایش MST، بررسی ارتباط، پیشنهاد مسیر/رزرو هوشمند،
+ * نمایش لیست رزرو و شروع حرکت دانشجویان را دارد،
  * و امکان ایجاد یال با درگ موس را فراهم می‌کند.
  */
 public class GraphPanel extends JPanel {
@@ -21,6 +23,9 @@ public class GraphPanel extends JPanel {
     // برای درگ موس
     private String dragStartNode = null;
     private Point  dragCurrentPoint = null;
+
+    // **reservations queue**
+    private List<Reservation> reservations = new ArrayList<>();
 
     public GraphPanel(List<UniPaths> paths,
                       Map<String, Point> positions,
@@ -47,11 +52,27 @@ public class GraphPanel extends JPanel {
         JButton suggestButton = new JButton("پیشنهاد مسیر و رزرو هوشمند");
         suggestButton.addActionListener(e -> showSuggestionDialog());
 
+        // جدید: دکمه نمایش لیست رزرو
+        JButton reservationButton = new JButton("لیست رزرو");
+        reservationButton.addActionListener(e -> showReservationDialog());
+
+        // جدید: دکمه شروع حرکت دانشجویان
+        JButton startMoveButton = new JButton("شروع حرکت دانشجویان");
+        startMoveButton.addActionListener(e -> {
+            reservations.clear();
+            JOptionPane.showMessageDialog(this,
+                    "لیست رزروها پاک شد. حرکت دانشجویان آغاز می‌شود.",
+                    "شروع حرکت",
+                    JOptionPane.INFORMATION_MESSAGE);
+        });
+
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         topPanel.setBackground(new Color(117, 166, 121));
         topPanel.add(reachButton);
         topPanel.add(mstButton);
         topPanel.add(suggestButton);
+        topPanel.add(reservationButton);
+        topPanel.add(startMoveButton);
 
         setLayout(new BorderLayout());
         add(topPanel, BorderLayout.NORTH);
@@ -82,7 +103,7 @@ public class GraphPanel extends JPanel {
                         boolean existsDirected = paths.stream().anyMatch(p ->
                                 p.getStartLocation().equals(dragStartNode) &&
                                         p.getEndLocation().equals(endNode) &&
-                                                !p.isRandom()
+                                        !p.isRandom()
                         );
                         if (existsDirected) {
                             JOptionPane.showMessageDialog(GraphPanel.this,
@@ -91,7 +112,6 @@ public class GraphPanel extends JPanel {
                             clearDragAndRepaint();
                             return;
                         }
-
                         // دریافت مرحله‌ای مقادیر از کاربر با اعتبارسنجی آنی
                         Integer cost = promptForInteger(
                                 "هزینه یال جدید از " + dragStartNode + " به " + endNode + " را وارد کنید:");
@@ -293,9 +313,12 @@ public class GraphPanel extends JPanel {
 
     /** دیالوگ پیشنهاد مسیر و رزرو هوشمند */
     private void showSuggestionDialog() {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
-                "پیشنهاد مسیر و رزرو هوشمند", true);
-        dialog.setLayout(new BorderLayout(10, 10));
+        JDialog dialog = new JDialog(
+                (Frame) SwingUtilities.getWindowAncestor(this),
+                "پیشنهاد مسیر و رزرو هوشمند",
+                true
+        );
+        dialog.setLayout(new BorderLayout(10,10));
 
         JTextField studentField = new JTextField(12);
         String[] uniNames = universities.stream()
@@ -304,10 +327,10 @@ public class GraphPanel extends JPanel {
         JComboBox<String> originCombo = new JComboBox<>(uniNames);
         JComboBox<String> destCombo   = new JComboBox<>(uniNames);
 
-        JPanel inputPanel = new JPanel(new GridLayout(3, 2, 5, 5));
-        inputPanel.add(new JLabel("نام دانشجو:"));    inputPanel.add(studentField);
-        inputPanel.add(new JLabel("دانشگاه مبدا:"));  inputPanel.add(originCombo);
-        inputPanel.add(new JLabel("دانشگاه مقصد:"));  inputPanel.add(destCombo);
+        JPanel inputPanel = new JPanel(new GridLayout(3,2,5,5));
+        inputPanel.add(new JLabel("نام دانشجو:"));     inputPanel.add(studentField);
+        inputPanel.add(new JLabel("دانشگاه مبدا:"));   inputPanel.add(originCombo);
+        inputPanel.add(new JLabel("دانشگاه مقصد:"));   inputPanel.add(destCombo);
 
         DefaultListModel<String> model = new DefaultListModel<>();
         for (UniPaths p : paths) {
@@ -317,11 +340,10 @@ public class GraphPanel extends JPanel {
                     p.getEndLocation(),
                     p.getCost(),
                     p.getRemainingCapacity(),
-                    p.getStartTime(),    // زمان شروع
-                    p.getEndTime()       // زمان پایان
+                    p.getStartTime(),
+                    p.getEndTime()
             ));
         }
-
         JList<String> list = new JList<>(model);
         list.setVisibleRowCount(10);
         JScrollPane listScroll = new JScrollPane(list);
@@ -331,35 +353,37 @@ public class GraphPanel extends JPanel {
         dialog.add(listScroll, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton bestButton = new JButton("بهینه‌ترین مسیر بین مبدا و مقصد");
-        JButton okButton   = new JButton("تأیید");
+        JButton bestButton   = new JButton("بهینه‌ترین مسیر");
+        JButton okButton     = new JButton("تأیید");
         JButton cancelButton = new JButton("انصراف");
         buttonPanel.add(bestButton);
         buttonPanel.add(okButton);
         buttonPanel.add(cancelButton);
         dialog.add(buttonPanel, BorderLayout.SOUTH);
 
+        // بهینه‌ترین مسیر (بدون کاهش ظرفیت)
         bestButton.addActionListener(e -> {
             String origin = (String) originCombo.getSelectedItem();
             String dest   = (String) destCombo.getSelectedItem();
             if (origin == null || dest == null || origin.equals(dest)) {
                 JOptionPane.showMessageDialog(dialog,
-                        "دانشگاه مبدا و مقصد باید انتخاب و متفاوت باشند.",
+                        "دانشگاه مبدا و مقصد باید متفاوت باشند.",
                         "خطا", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            for (UniPaths p : paths) p.setHighlighted(false);
+            boolean found = UniPaths.DijkstraShortestPath(paths, dest, origin, false);
+            if (!found) {
+                JOptionPane.showMessageDialog(dialog,
+                        "مسیر مناسبی یافت نشد.",
+                        "خطا", JOptionPane.WARNING_MESSAGE);
             } else {
-                for (UniPaths p : paths) p.setHighlighted(false);
-                boolean found = UniPaths.DijkstraShortestPath(paths, dest, origin, false);
-                if (!found) {
-                    JOptionPane.showMessageDialog(dialog,
-                            "مسیر مناسبی یافت نشد.",
-                            "خطا", JOptionPane.WARNING_MESSAGE);
-                } else {
-                    repaint();
-                    dialog.dispose();
-                }
+                repaint();
+                dialog.dispose();
             }
         });
 
+        // تأیید نهایی (کاهش ظرفیت یا ورود به صف رزرو)
         okButton.addActionListener(e -> {
             String student = studentField.getText().trim();
             String origin  = (String) originCombo.getSelectedItem();
@@ -368,17 +392,62 @@ public class GraphPanel extends JPanel {
                 JOptionPane.showMessageDialog(dialog,
                         "لطفاً نام دانشجو را وارد کنید.",
                         "خطا", JOptionPane.ERROR_MESSAGE);
-            } else if (origin.equals(dest)) {
+                return;
+            }
+            if (origin.equals(dest)) {
                 JOptionPane.showMessageDialog(dialog,
                         "دانشگاه مبدا و مقصد نمی‌توانند یکسان باشند.",
                         "خطا", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // ۱) مسیر بر اساس هزینه+زمان بی‌درنظر ظرفیت بیاب (برای چک ظرفیت)
+            List<UniPaths> bestPath = UniPaths.findShortestPathEdges(paths, dest, origin);
+            if (bestPath.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog,
+                        "مسیر مناسبی یافت نشد.",
+                        "خطا", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            // ۲) اگر هر کدام از یال‌ها ظرفیت صفر دارند
+            boolean anyFull = bestPath.stream()
+                    .anyMatch(ep -> ep.getRemainingCapacity() <= 0);
+            if (anyFull) {
+                int choice = JOptionPane.showOptionDialog(dialog,
+                        "مسیر انتخاب‌شده ظرفیت ندارد.\n" +
+                                "آیا می‌خواهید وارد صف رزرو این مسیر شوید یا مسیر دیگری انتخاب کنید؟",
+                        "ظرفیت تکمیل است",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE,
+                        null,
+                        new String[]{"رزرو", "تغییر مسیر"},
+                        "رزرو");
+                if (choice == 0) {
+                    // رزرو
+                    reservations.add(new Reservation(student, origin, dest, bestPath));
+                    showReservationDialog();
+                    dialog.dispose();
+                } else {
+                    // تغییر مسیر: حالا مسیر بعدی را با کاهش ظرفیت واقعی پیدا کن
+                    for (UniPaths p : paths) p.setHighlighted(false);
+                    boolean found = UniPaths.DijkstraShortestPath(paths, dest, origin, true);
+                    if (!found) {
+                        JOptionPane.showMessageDialog(dialog,
+                                "مسیر دیگری یافت نشد.",
+                                "خطا", JOptionPane.WARNING_MESSAGE);
+                    } else {
+                        repaint();
+                        dialog.dispose();
+                    }
+                }
             } else {
+                // ظرفیت دارد: مستقیم رزرو (کاهش ۱ واحد ظرفیت)
                 for (UniPaths p : paths) p.setHighlighted(false);
                 boolean found = UniPaths.DijkstraShortestPath(paths, dest, origin, true);
                 if (!found) {
                     JOptionPane.showMessageDialog(dialog,
-                            "مسیر مناسبی یافت نشد.",
-                            "خطا", JOptionPane.WARNING_MESSAGE);
+                            "خطا در رزرو مسیر.",
+                            "خطا", JOptionPane.ERROR_MESSAGE);
                 } else {
                     repaint();
                     dialog.dispose();
@@ -391,6 +460,51 @@ public class GraphPanel extends JPanel {
         dialog.pack();
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
+    }
+
+    /** دیالوگ نمایش لیست رزروها */
+    private void showReservationDialog() {
+        JDialog dialog = new JDialog(
+                (Frame) SwingUtilities.getWindowAncestor(this),
+                "لیست رزرو",
+                true
+        );
+        DefaultListModel<String> model = new DefaultListModel<>();
+        for (Reservation r : reservations) {
+            model.addElement(r.toString());
+        }
+        JList<String> list = new JList<>(model);
+        JScrollPane scroll = new JScrollPane(list);
+        scroll.setPreferredSize(new Dimension(400,200));
+
+        JPanel btnPanel = new JPanel();
+        JButton close = new JButton("بستن");
+        close.addActionListener(e -> dialog.dispose());
+        btnPanel.add(close);
+
+        dialog.setLayout(new BorderLayout(5,5));
+        dialog.add(scroll, BorderLayout.CENTER);
+        dialog.add(btnPanel, BorderLayout.SOUTH);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    /** یک ورودی صف رزرو */
+    private static class Reservation {
+        String student, origin, dest;
+        List<UniPaths> path;
+        Reservation(String student, String origin,
+                    String dest, List<UniPaths> path) {
+            this.student = student;
+            this.origin  = origin;
+            this.dest    = dest;
+            this.path    = path;
+        }
+        @Override
+        public String toString() {
+            return student + ": " + origin + " → " + dest;
+        }
     }
 
     /** دیالوگ بررسی ارتباط با حداکثر دو گام */

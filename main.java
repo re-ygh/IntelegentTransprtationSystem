@@ -7,20 +7,11 @@ import java.util.List;
  * کلاس اصلی اجرای برنامه: «سامانه هوشمند حمل و نقل دانشگاهی»
  */
 public class main {
-
-    // لیست کلی دانشگاه‌ها (نودها)
     static List<Universities> universities = new ArrayList<>();
-
-    // لیست مسیرها (یال‌ها بین نودها)
     static List<UniPaths> paths = new ArrayList<>();
-
-    // نگاشت نام دانشگاه به مختصات گرافیکی آن (برای رسم گراف)
     static Map<String, Point> universityPositions = new HashMap<>();
-
-    // پنل مرکزی رسم گراف با سه منبع داده: مسیرها، مختصات، دانشگاه‌ها
     static GraphPanel graphPanel = new GraphPanel(paths, universityPositions, universities);
 
-    // دسترسی سراسری به ناوبری صفحه‌ها
     public static JPanel mainPanel;
     public static CardLayout cardLayout;
 
@@ -33,7 +24,6 @@ public class main {
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
 
-        // افزودن صفحات
         mainPanel.add(createMainMenu(), "menu");
         mainPanel.add(createBuildGraphPage(), "page1");
         mainPanel.add(createPage("صفحه نمایش گراف و زیرساخت"), "page2");
@@ -46,7 +36,6 @@ public class main {
         frame.setVisible(true);
     }
 
-    /** ایجاد منوی اصلی برنامه */
     private static JPanel createMainMenu() {
         JPanel panel = new JPanel();
         panel.setBackground(new Color(147, 196, 151));
@@ -77,11 +66,9 @@ public class main {
                 }
             });
         }
-
         return panel;
     }
 
-    /** ایجاد صفحات عمومی */
     private static JPanel createPage(String title) {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(144, 238, 144));
@@ -100,26 +87,24 @@ public class main {
         return panel;
     }
 
-    /** ایجاد صفحه ساخت گراف دانشگاه‌ها (page1) */
     private static JPanel createBuildGraphPage() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(144, 238, 144));
 
-        // —— فرم ورودی دانشگاه و مسیر ——
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setOpaque(false);
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 40, 20, 40));
 
-        JTextField nameField       = new JTextField(12);
-        String[] regions           = {"شمال", "جنوب", "شرق", "غرب", "مرکز"};
+        JTextField nameField         = new JTextField(12);
+        String[] regions             = {"شمال", "جنوب", "شرق", "غرب", "مرکز"};
         JComboBox<String> regionField = new JComboBox<>(regions);
         JComboBox<Universities> fromBox = new JComboBox<>();
         JComboBox<Universities> toBox   = new JComboBox<>();
-        JTextField costField       = new JTextField(10);
-        JTextField startTimeField  = new JTextField(10);
-        JTextField endTimeField    = new JTextField(10);
-        JTextField capacityField   = new JTextField(10);
+        JTextField costField         = new JTextField(10);
+        JTextField startTimeField    = new JTextField(10);
+        JTextField endTimeField      = new JTextField(10);
+        JTextField capacityField     = new JTextField(10);
 
         contentPanel.add(new JLabel("نام دانشگاه جدید:"));
         contentPanel.add(nameField);
@@ -165,9 +150,7 @@ public class main {
         JScrollPane scrollPanel = new JScrollPane(contentPanel);
         scrollPanel.setPreferredSize(new Dimension(260, 700));
         panel.add(scrollPanel, BorderLayout.EAST);
-        // —— پایان فرم ورودی ——
 
-        // جایگذاری GraphPanel
         panel.add(graphPanel, BorderLayout.CENTER);
 
         // اضافه کردن دانشگاه
@@ -237,7 +220,7 @@ public class main {
                 //زمان شروع و پایان نمیتوانند یکی باشند
                 if (startTime == endTime) {
                     JOptionPane.showMessageDialog(panel,
-                            "زمان شروع و پایان نمیتوانند یکی باشند.",
+                            "زمان شروع و پایان باید زمان شروع و پایان نمیتوانند یکی باشند.",
                             "خطا", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
