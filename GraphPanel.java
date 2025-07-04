@@ -56,15 +56,6 @@ public class GraphPanel extends JPanel {
         JButton reservationButton = new JButton("لیست رزرو");
         reservationButton.addActionListener(e -> showReservationDialog());
 
-        // جدید: دکمه شروع حرکت دانشجویان
-        JButton startMoveButton = new JButton("شروع حرکت دانشجویان");
-        startMoveButton.addActionListener(e -> {
-            reservations.clear();
-            JOptionPane.showMessageDialog(this,
-                    "لیست رزروها پاک شد. حرکت دانشجویان آغاز می‌شود.",
-                    "شروع حرکت",
-                    JOptionPane.INFORMATION_MESSAGE);
-        });
 
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         topPanel.setBackground(new Color(117, 166, 121));
@@ -72,8 +63,6 @@ public class GraphPanel extends JPanel {
         topPanel.add(mstButton);
         topPanel.add(suggestButton);
         topPanel.add(reservationButton);
-        topPanel.add(startMoveButton);
-
         setLayout(new BorderLayout());
         add(topPanel, BorderLayout.NORTH);
     }
@@ -312,43 +301,69 @@ public class GraphPanel extends JPanel {
     }
 
     /** دیالوگ پیشنهاد مسیر و رزرو هوشمند */
+// در همان کلاسی که متدهای UI را نگه می‌دارد (مثلاً GraphPanel یا MainFrame)
     private void showSuggestionDialog() {
         JDialog dialog = new JDialog(
                 (Frame) SwingUtilities.getWindowAncestor(this),
                 "پیشنهاد مسیر و رزرو هوشمند",
                 true
         );
-        dialog.setLayout(new BorderLayout(10,10));
+        dialog.setLayout(new BorderLayout(10, 10));
 
+        // --- پانل ورودی ---
         JTextField studentField = new JTextField(12);
         String[] uniNames = universities.stream()
                 .map(Universities::getUniversityName)
                 .toArray(String[]::new);
         JComboBox<String> originCombo = new JComboBox<>(uniNames);
         JComboBox<String> destCombo   = new JComboBox<>(uniNames);
+        JPanel inputPanel = new JPanel(new GridLayout(3, 2, 5, 5));
+        inputPanel.add(new JLabel("نام دانشجو:"));   inputPanel.add(studentField);
+        inputPanel.add(new JLabel("دانشگاه مبدا:")); inputPanel.add(originCombo);
+        inputPanel.add(new JLabel("دانشگاه مقصد:")); inputPanel.add(destCombo);
 
-        JPanel inputPanel = new JPanel(new GridLayout(3,2,5,5));
-        inputPanel.add(new JLabel("نام دانشجو:"));     inputPanel.add(studentField);
-        inputPanel.add(new JLabel("دانشگاه مبدا:"));   inputPanel.add(originCombo);
-        inputPanel.add(new JLabel("دانشگاه مقصد:"));   inputPanel.add(destCombo);
-
-        DefaultListModel<String> model = new DefaultListModel<>();
+        // --- لیست مسیرها با مدل از نوع UniPaths ---
+        DefaultListModel<UniPaths> model = new DefaultListModel<>();
         for (UniPaths p : paths) {
-            model.addElement(String.format(
-                    "%s → %s  | هزینه: %d  | ظرفیت باقیمانده: %d  | زمان: %02d–%02d",
-                    p.getStartLocation(),
-                    p.getEndLocation(),
-                    p.getCost(),
-                    p.getRemainingCapacity(),
-                    p.getStartTime(),
-                    p.getEndTime()
-            ));
+            model.addElement(p);
         }
-        JList<String> list = new JList<>(model);
+        JList<UniPaths> list = new JList<>(model);
         list.setVisibleRowCount(10);
+        list.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list,
+                                                          Object value,
+                                                          int index,
+                                                          boolean isSelected,
+                                                          boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
+                UniPaths p = (UniPaths) value;
+                String text = String.format(
+                        "%s → %s  | هزینه: %d  | ظرفیت: %d  | زمان: %02d–%02d",
+                        p.getStartLocation(),
+                        p.getEndLocation(),
+                        p.getCost(),
+                        p.getRemainingCapacity(),
+                        p.getStartTime(),
+                        p.getEndTime()
+                );
+                label.setText(text);
+                // قرمز کردن اگر ظرفیت صفر است
+                if (p.getRemainingCapacity() <= 0) {
+                    label.setForeground(Color.RED);
+                } else {
+                    label.setForeground(isSelected
+                            ? list.getSelectionForeground()
+                            : list.getForeground());
+                }
+                return label;
+            }
+        });
         JScrollPane listScroll = new JScrollPane(list);
-        listScroll.setPreferredSize(new Dimension(500,200));
+        listScroll.setPreferredSize(new Dimension(500, 200));
 
+        // --- چینش و دکمه‌ها ---
         dialog.add(inputPanel, BorderLayout.NORTH);
         dialog.add(listScroll, BorderLayout.CENTER);
 
@@ -457,7 +472,6 @@ public class GraphPanel extends JPanel {
         });
 
         cancelButton.addActionListener(e -> dialog.dispose());
-
         dialog.pack();
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
@@ -470,20 +484,53 @@ public class GraphPanel extends JPanel {
                 "لیست رزرو",
                 true
         );
-        DefaultListModel<String> model = new DefaultListModel<>();
-        for (Reservation r : reservations) {
-            model.addElement(r.toString());
-        }
-        JList<String> list = new JList<>(model);
-        JScrollPane scroll = new JScrollPane(list);
-        scroll.setPreferredSize(new Dimension(400,200));
 
+        // مدل و لیست
+        DefaultListModel<Reservation> model = new DefaultListModel<>();
+        for (Reservation r : reservations) {
+            model.addElement(r);
+        }
+        JList<Reservation> list = new JList<>(model);
+        list.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list,
+                                                          Object value,
+                                                          int index,
+                                                          boolean isSelected,
+                                                          boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
+                Reservation r = (Reservation) value;
+                String fullPath = r.getFullPathString();
+                // این‌جا از لیست یال‌ها استفاده می‌کنیم
+                int cap = GraphUtils.getMinCapacityAlong(r.getPathEdges());
+                label.setText(r.getStudentName() +
+                        " | مسیر: " + fullPath +
+                        " | ظرفیت: " + cap);
+                if (cap <= 0) {
+                    label.setForeground(Color.RED);
+                } else {
+                    label.setForeground(isSelected
+                            ? list.getSelectionForeground()
+                            : list.getForeground());
+                }
+                return label;
+            }
+        });
+
+        JScrollPane scroll = new JScrollPane(list);
+        scroll.setPreferredSize(new Dimension(400, 200));
+
+        // پنل دکمه‌ها
         JPanel btnPanel = new JPanel();
+        JButton moveBtn = new JButton("حرکت دانشجو");
+        moveBtn.addActionListener(e -> moveNextStudent(model));
         JButton close = new JButton("بستن");
         close.addActionListener(e -> dialog.dispose());
+        btnPanel.add(moveBtn);
         btnPanel.add(close);
 
-        dialog.setLayout(new BorderLayout(5,5));
+        dialog.setLayout(new BorderLayout(5, 5));
         dialog.add(scroll, BorderLayout.CENTER);
         dialog.add(btnPanel, BorderLayout.SOUTH);
         dialog.pack();
@@ -491,22 +538,33 @@ public class GraphPanel extends JPanel {
         dialog.setVisible(true);
     }
 
-    /** یک ورودی صف رزرو */
-    private static class Reservation {
-        String student, origin, dest;
-        List<UniPaths> path;
-        Reservation(String student, String origin,
-                    String dest, List<UniPaths> path) {
-            this.student = student;
-            this.origin  = origin;
-            this.dest    = dest;
-            this.path    = path;
+    private void moveNextStudent(DefaultListModel<Reservation> model) {
+        // اگر هیچ رزروی نباشد کاری نمی‌کنیم
+        if (reservations.isEmpty()) {
+            return;
         }
-        @Override
-        public String toString() {
-            return student + ": " + origin + " → " + dest;
+
+        // برمی‌گردانیم اولین رزرو در صف (FIFO)
+        Reservation r = reservations.remove(0);
+
+        // آزادسازی ظرفیت مسیر (increment) برای همه‌ی یال‌های مسیر
+        for (UniPaths edge : r.getPathEdges()) {
+            GraphUtils.incrementCapacity(edge);
+        }
+
+        // به‌روز کردن مدل لیست نمایش
+        updateReservationModel(model);
+    }
+
+
+    private void updateReservationModel(DefaultListModel<Reservation> model) {
+        model.clear();
+        for (Reservation r : reservations) {
+            model.addElement(r);
         }
     }
+
+
 
     /** دیالوگ بررسی ارتباط با حداکثر دو گام */
     private void showReachabilityDialog() {
