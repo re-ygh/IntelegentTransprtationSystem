@@ -5,6 +5,11 @@ import java.awt.geom.QuadCurve2D;
 import java.util.*;
 import java.util.List;
 
+/**
+ * این کلاس نمای گرافیکی از گراف دانشگاهی را رسم می‌کند،
+ * دکمه‌های نمایشی، پیشنهاد مسیر/رزرو هوشمند،
+ * نمایش لیست رزرو با صف اولویت‌دار و حرکت دانشجویان را دارد.
+ */
 public class GraphPanel extends JPanel {
     private static final int NODE_RADIUS = 10;
 
@@ -13,10 +18,12 @@ public class GraphPanel extends JPanel {
     private List<Universities> universities;
     private List<UniPaths> mstEdges = null;
 
+    // صف اولویت‌دار رزروها بر اساس زمان رزرو
+    private PriorityQueue<Reservation> reservations = new PriorityQueue<>();
+
+    // برای درگ موس
     private String dragStartNode = null;
     private Point  dragCurrentPoint = null;
-
-    private List<Reservation> reservations = new ArrayList<>();
 
     public GraphPanel(List<UniPaths> paths,
                       Map<String, Point> positions,
@@ -463,46 +470,85 @@ public class GraphPanel extends JPanel {
             );
         }
     }
+
     // اصلاح showReservationDialog برای نمایش ظرفیت‌های مسیر
+    /** دیالوگ نمایش لیست رزروها با صف اولویت‌دار */
     private void showReservationDialog() {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "لیست رزرو", true);
+        JDialog dialog = new JDialog(
+                (Frame) SwingUtilities.getWindowAncestor(this),
+                "لیست رزرو", true
+        );
         DefaultListModel<Reservation> model = new DefaultListModel<>();
-        for (Reservation r : reservations) model.addElement(r);
+
+        // کپی و مرتب‌سازی بر اساس زمان رزرو
+        List<Reservation> sorted = new ArrayList<>(reservations);
+        Collections.sort(sorted);
+        for (Reservation r : sorted) {
+            model.addElement(r);
+        }
+
         JList<Reservation> list = new JList<>(model);
         list.setCellRenderer(new DefaultListCellRenderer() {
-            @Override public Component getListCellRendererComponent(JList<?> list, Object value,
-                                                                    int index, boolean isSelected, boolean cellHasFocus) {
-                JLabel label = (JLabel) super.getListCellRendererComponent(list, value,index,isSelected,cellHasFocus);
+            @Override
+            public Component getListCellRendererComponent(JList<?> list,
+                                                          Object value,
+                                                          int index,
+                                                          boolean isSelected,
+                                                          boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
                 Reservation r = (Reservation) value;
                 String fullPath = r.getFullPathString();
                 int minCap = r.getRemainingCapacity();
-                label.setText(r.getStudentName() + " | مسیر: " + fullPath + " | کمترین ظرفیت: " + minCap);
-                if (minCap <= 0) label.setForeground(Color.RED);
-                else label.setForeground(isSelected ? list.getSelectionForeground() : list.getForeground());
+                label.setText(r.getStudentName() +
+                        " | مسیر: " + fullPath +
+                        " | کمترین ظرفیت: " + minCap);
+                if (minCap <= 0) {
+                    label.setForeground(Color.RED);
+                } else {
+                    label.setForeground(isSelected
+                            ? list.getSelectionForeground()
+                            : list.getForeground());
+                }
                 return label;
             }
         });
+
         JScrollPane scroll = new JScrollPane(list);
-        scroll.setPreferredSize(new Dimension(400,200));
+        scroll.setPreferredSize(new Dimension(400, 200));
+
         JPanel btnPanel = new JPanel();
         JButton moveBtn = new JButton("حرکت دانشجو");
         moveBtn.addActionListener(e -> moveNextStudent(model));
-        JButton close = new JButton("بستن"); close.addActionListener(e -> dialog.dispose());
-        btnPanel.add(moveBtn); btnPanel.add(close);
-        dialog.setLayout(new BorderLayout(5,5));
+        JButton closeBtn = new JButton("بستن");
+        closeBtn.addActionListener(e -> dialog.dispose());
+        btnPanel.add(moveBtn);
+        btnPanel.add(closeBtn);
+
+        dialog.setLayout(new BorderLayout(5, 5));
         dialog.add(scroll, BorderLayout.CENTER);
         dialog.add(btnPanel, BorderLayout.SOUTH);
-        dialog.pack(); dialog.setLocationRelativeTo(this); dialog.setVisible(true);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
-
+    /** حرکت یک رزرو از صف اولویت‌دار */
     private void moveNextStudent(DefaultListModel<Reservation> model) {
-        if (reservations.isEmpty()) return;
-        Reservation r = reservations.remove(0);
-        for (UniPaths e : r.getPathEdges()) GraphUtils.incrementCapacity(e);
+        Reservation next = reservations.poll();
+        if (next == null) return;
+        for (UniPaths edge : next.getPathEdges()) {
+            GraphUtils.incrementCapacity(edge);
+        }
         updateReservationModel(model);
     }
 
+    /** به‌روز کردن مدل لیست بعد از هر حرکت */
     private void updateReservationModel(DefaultListModel<Reservation> model) {
-        model.clear(); for (Reservation r : reservations) model.addElement(r);
+        model.clear();
+        List<Reservation> sorted = new ArrayList<>(reservations);
+        Collections.sort(sorted);
+        for (Reservation r : sorted) {
+            model.addElement(r);
+        }
     }
 }

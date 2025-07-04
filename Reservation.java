@@ -1,25 +1,47 @@
-import javax.swing.*;
-import java.awt.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class Reservation {
-    private String studentName;
-    private String origin;
-    private String dest;
-    private List<UniPaths> pathEdges;
+/**
+ * یک ورودی صف رزرو برای حمل‌ونقل دانشگاهی
+ * ثبت و پیگیری با صف اولویت‌دار بر اساس زمان رزرو
+ */
+public class Reservation implements Comparable<Reservation> {
+    private final long bookingTimestamp;      // زمان رزرو
+    private String studentName;               // نام دانشجو
+    private String origin;                    // مبدا
+    private String dest;                      // مقصد
+    private List<UniPaths> pathEdges;         // لیست یال‌های مسیر
 
-    public Reservation(String studentName, String origin, String dest, List<UniPaths> pathEdges) {
+    public Reservation(String studentName,
+                       String origin,
+                       String dest,
+                       List<UniPaths> pathEdges) {
+        this.bookingTimestamp = System.currentTimeMillis();
         this.studentName = studentName;
-        this.origin      = origin;
-        this.dest        = dest;
-        this.pathEdges   = pathEdges;
+        this.origin = origin;
+        this.dest = dest;
+        this.pathEdges = pathEdges;
     }
 
-    public String getStudentName() { return studentName; }
-    public String getOrigin()      { return origin; }
-    public String getDest()        { return dest; }
-    public List<UniPaths> getPathEdges() { return pathEdges; }
+    public long getBookingTimestamp() {
+        return bookingTimestamp;
+    }
+
+    public String getStudentName() {
+        return studentName;
+    }
+
+    public String getOrigin() {
+        return origin;
+    }
+
+    public String getDest() {
+        return dest;
+    }
+
+    public List<UniPaths> getPathEdges() {
+        return pathEdges;
+    }
 
     /**
      * مسیر کامل را با ظرفیت هر یال نشان می‌دهد:
@@ -49,6 +71,11 @@ public class Reservation {
                 .mapToInt(UniPaths::getRemainingCapacity)
                 .min()
                 .orElse(0);
+    }
+
+    @Override
+    public int compareTo(Reservation other) {
+        return Long.compare(this.bookingTimestamp, other.bookingTimestamp);
     }
 
     @Override
