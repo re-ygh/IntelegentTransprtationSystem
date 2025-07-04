@@ -236,7 +236,7 @@ public class main {
                 UniPaths newPath = new UniPaths(
                         startTime, endTime, cost, capacity,
                         from.getUniversityName(), to.getUniversityName(),
-                        false, capacity
+                        false, capacity, null
                 );
 
                 // چک تکراری بودن مسیر در همان جهت

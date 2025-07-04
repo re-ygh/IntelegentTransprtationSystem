@@ -34,8 +34,8 @@ public class GraphUtils {
             if (!other.getUniversityName().equals(newUni.getUniversityName())) {
                 int cost = calculateCost(newUni, other);
                 UniPaths edge = new UniPaths(
-                        1, 2, cost, 50,
-                        newUni.getUniversityName(), other.getUniversityName(), true, 50);
+                        1, 6, cost, 20,
+                        newUni.getUniversityName(), other.getUniversityName(), true, 20, null);
                 pq.offer(edge);
             }
         }

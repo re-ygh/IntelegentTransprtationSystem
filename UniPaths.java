@@ -15,9 +15,9 @@ public class UniPaths implements Serializable {
  private boolean isRandom;        // مشخص می‌کند آیا یال به‌صورت خودکار تولید شده یا دستی
  private int remainingCapacity;
  private boolean highlighted = false;  // هایلایت (قرمز) برای مسیر نهایی
-
+private List<String> reservations = new ArrayList<>();
  public UniPaths(int startTime, int endTime, int cost, int capacity,
-                 String startLocation, String endLocation, boolean isRandom, int remainingCapacity) {
+                 String startLocation, String endLocation, boolean isRandom, int remainingCapacity,List<String> reservations) {
   this.startTime = startTime;
   this.endTime = endTime;
   this.cost = cost;
@@ -26,9 +26,19 @@ public class UniPaths implements Serializable {
   this.endLocation = endLocation;
   this.isRandom = isRandom;
   this.remainingCapacity = remainingCapacity;
+  this.reservations = reservations;
  }
 
  // getter / setterها
+
+
+ public List<String> getReservations() {
+  return reservations;
+ }
+
+ public void setReservations(List<String> reservations) {
+  this.reservations = reservations;
+ }
 
  public int getStartTime() { return startTime; }
  public void setStartTime(int startTime) { this.startTime = startTime; }

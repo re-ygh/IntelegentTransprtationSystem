@@ -174,7 +174,7 @@ public class GraphPanel extends JPanel {
                         UniPaths newPath = new UniPaths(
                                 startTime, endTime, cost, capacity,
                                 dragStartNode, endNode,
-                                false, capacity
+                                false, capacity, null
                         );
                         paths.add(newPath);
                     }
@@ -449,6 +449,7 @@ public class GraphPanel extends JPanel {
                             "خطا در رزرو مسیر.",
                             "خطا", JOptionPane.ERROR_MESSAGE);
                 } else {
+
                     repaint();
                     dialog.dispose();
                 }
