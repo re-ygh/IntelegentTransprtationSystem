@@ -1,56 +1,36 @@
+import javax.swing.*;
+import java.awt.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * یک ورودی صف رزرو برای حمل‌ونقل دانشگاهی
- */
 public class Reservation {
-    private String studentName;          // نام دانشجو
-    private String origin;               // مبدا
-    private String dest;                 // مقصد
-    private List<UniPaths> pathEdges;    // لیست یال‌های مسیر (UniPaths)
+    private String studentName;
+    private String origin;
+    private String dest;
+    private List<UniPaths> pathEdges;
 
-    public Reservation(String studentName,
-                       String origin,
-                       String dest,
-                       List<UniPaths> pathEdges) {
+    public Reservation(String studentName, String origin, String dest, List<UniPaths> pathEdges) {
         this.studentName = studentName;
         this.origin      = origin;
         this.dest        = dest;
         this.pathEdges   = pathEdges;
     }
 
-    public String getStudentName() {
-        return studentName;
-    }
-
-    public String getOrigin() {
-        return origin;
-    }
-
-    public String getDest() {
-        return dest;
-    }
-
-    public List<UniPaths> getPathEdges() {
-        return pathEdges;
-    }
+    public String getStudentName() { return studentName; }
+    public String getOrigin()      { return origin; }
+    public String getDest()        { return dest; }
+    public List<UniPaths> getPathEdges() { return pathEdges; }
 
     /**
-     * مسیر کامل را به صورت "A->B->C->D" برمی‌گرداند
-     */
-    /**
-     * مسیر کامل را به صورت "A->B(3)->C(2)->D(5)" برمی‌گرداند،
-     * یعنی هر گام با ظرفیت remainingCapacity مشخص شده.
+     * مسیر کامل را با ظرفیت هر یال نشان می‌دهد:
+     * مثال: "A->B(3)->C(1)->D(4)"
      */
     public String getFullPathString() {
         if (pathEdges == null || pathEdges.isEmpty()) {
             return origin + "->" + dest;
         }
         StringBuilder sb = new StringBuilder();
-        // نام مبدا اولین یال
         sb.append(pathEdges.get(0).getStartLocation());
-        // برای هر یال، نام مقصد و ظرفیت باقی‌مانده را اضافه کن
         for (UniPaths edge : pathEdges) {
             sb.append("->")
                     .append(edge.getEndLocation())
@@ -61,9 +41,8 @@ public class Reservation {
         return sb.toString();
     }
 
-
     /**
-     * کمینهٔ ظرفیت باقی‌مانده در طول مسیر را برمی‌گرداند
+     * کمترین ظرفیت باقی‌مانده در طول مسیر را برمی‌گرداند
      */
     public int getRemainingCapacity() {
         return pathEdges.stream()
@@ -74,29 +53,6 @@ public class Reservation {
 
     @Override
     public String toString() {
-        // نمایش خلاصه: نام دانشجو و مسیر کلی
         return studentName + ": " + origin + " → " + dest;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
