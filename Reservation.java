@@ -39,19 +39,28 @@ public class Reservation {
     /**
      * مسیر کامل را به صورت "A->B->C->D" برمی‌گرداند
      */
+    /**
+     * مسیر کامل را به صورت "A->B(3)->C(2)->D(5)" برمی‌گرداند،
+     * یعنی هر گام با ظرفیت remainingCapacity مشخص شده.
+     */
     public String getFullPathString() {
-        if (pathEdges.isEmpty()) {
+        if (pathEdges == null || pathEdges.isEmpty()) {
             return origin + "->" + dest;
         }
-        // ابتدا همه‌ی شروع‌های یال‌ها را می‌چسبانیم،
-        // سپس انتهای آخرین یال را اضافه می‌کنیم.
-        String prefix = pathEdges.stream()
-                .map(UniPaths::getStartLocation)
-                .collect(Collectors.joining("->"));
-        String lastEnd = pathEdges.get(pathEdges.size() - 1)
-                .getEndLocation();
-        return prefix + "->" + lastEnd;
+        StringBuilder sb = new StringBuilder();
+        // نام مبدا اولین یال
+        sb.append(pathEdges.get(0).getStartLocation());
+        // برای هر یال، نام مقصد و ظرفیت باقی‌مانده را اضافه کن
+        for (UniPaths edge : pathEdges) {
+            sb.append("->")
+                    .append(edge.getEndLocation())
+                    .append("(")
+                    .append(edge.getRemainingCapacity())
+                    .append(")");
+        }
+        return sb.toString();
     }
+
 
     /**
      * کمینهٔ ظرفیت باقی‌مانده در طول مسیر را برمی‌گرداند

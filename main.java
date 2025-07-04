@@ -16,6 +16,81 @@ public class main {
     public static CardLayout cardLayout;
 
     public static void main(String[] args) {
+
+
+        //رندوم شت برای تست
+        Random rand = new Random();
+
+// ۱) ۵ دانشگاه در ۵ منطقه‌ی مختلف
+        String[] uniNames = {
+                "دانشگاه شمال",
+                "دانشگاه جنوب",
+                "دانشگاه شرق",
+                "دانشگاه غرب",
+                "دانشگاه مرکز"
+        };
+        String[] regions = {"شمال","جنوب","شرق","غرب","مرکز"};
+        for (int i = 0; i < uniNames.length; i++) {
+            Universities u = Universities.generateNewUniversity(
+                    uniNames[i],
+                    regions[i],
+                    0,    // startTime (برای تست اهمیتی ندارد)
+                    0,    // FinishTime
+                    universities,
+                    750,  // panelWidth
+                    700   // panelHeight
+            );
+            universities.add(u);
+            universityPositions.put(
+                    u.getUniversityName(),
+                    new Point(u.getX(), u.getY())
+            );
+        }
+
+// ۲) ۱۲ یال تصادفی با یک یال مجاز به هر جهت برای هر جفت و اجازه‌ی معکوس
+        Set<String> usedPairs = new HashSet<>();
+        int edgesToAdd = 12;
+        while (paths.size() < edgesToAdd) {
+            int fromIdx = rand.nextInt(universities.size());
+            int toIdx;
+            do {
+                toIdx = rand.nextInt(universities.size());
+            } while (toIdx == fromIdx);
+
+            String key = fromIdx + "->" + toIdx;
+            if (usedPairs.contains(key)) {
+                continue;  // اگر این جهت قبلاً ساخته شده، دور بعد
+            }
+            usedPairs.add(key);
+
+            Universities from = universities.get(fromIdx);
+            Universities to   = universities.get(toIdx);
+
+            int cost      = rand.nextInt(391) + 10;                  // [10,400]
+            int cap       = rand.nextInt(5)   + 1;                   // [1,5]
+            int startTime = rand.nextInt(24);                        // [0,23]
+            int endTime   = rand.nextInt(24 - startTime)
+                    + startTime + 1;                       // (startTime,24]
+            boolean isRandom = rand.nextBoolean();
+
+            UniPaths p = new UniPaths(
+                    startTime,
+                    endTime,
+                    cost,
+                    cap,
+                    from.getUniversityName(),
+                    to.getUniversityName(),
+                    isRandom,
+                    cap,                    // remainingCapacity = capacity
+                    new ArrayList<>()       // لیست رزروهای اولیه خالی
+            );
+            paths.add(p);
+        }
+        // پایان رندوم شت
+
+
+
+
         JFrame frame = new JFrame("سامانه هوشمند حمل و نقل دانشگاهی");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1100, 700);
