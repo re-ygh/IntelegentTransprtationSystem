@@ -196,6 +196,8 @@ public class GraphPanel extends JPanel {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
         g2.setStroke(new BasicStroke(2));
+
+        // رسم یال‌ها
         Map<String, Integer> pairCount = new HashMap<>();
         for (UniPaths p : paths) {
             String u = p.getStartLocation(), v = p.getEndLocation();
@@ -208,7 +210,6 @@ public class GraphPanel extends JPanel {
             if (a == null || b == null) continue;
             String u = p.getStartLocation(), v = p.getEndLocation();
             String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
-            int count = pairCount.getOrDefault(key, 0);
             if (p.isHighlighted()) {
                 g2.setColor(Color.RED);
             } else if (mstEdges != null && mstEdges.contains(p)) {
@@ -218,7 +219,8 @@ public class GraphPanel extends JPanel {
             } else {
                 g2.setColor(Color.BLACK);
             }
-            if (count > 1 && u.compareTo(v) > 0) {
+            if (pairCount.getOrDefault(key, 0) > 1 && u.compareTo(v) > 0) {
+                // رسم منحنی
                 double x1 = a.x, y1 = a.y, x2 = b.x, y2 = b.y;
                 double mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
                 double dx = x2 - x1, dy = y2 - y1;
@@ -233,21 +235,17 @@ public class GraphPanel extends JPanel {
             } else {
                 g2.drawLine(a.x, a.y, b.x, b.y);
                 g2.setColor(Color.BLACK);
-                g2.drawString(String.valueOf(p.getCost()), (a.x + b.x)/2, (a.y + b.y)/2);
+                g2.drawString(String.valueOf(p.getCost()),
+                        (a.x + b.x) / 2, (a.y + b.y) / 2);
             }
         }
-        if (dragStartNode != null && dragCurrentPoint != null) {
-            Point a = universityPositions.get(dragStartNode);
-            if (a != null) {
-                g2.setColor(Color.GRAY);
-                g2.drawLine(a.x, a.y, dragCurrentPoint.x, dragCurrentPoint.y);
-            }
-        }
+
+        // ترسیم نودها
         Map<String, Color> colors = Map.of(
                 "شمال", new Color(252, 61, 3),
                 "جنوب", new Color(252, 152, 3),
-                "شرق",  new Color(177, 3, 252),
-                "غرب",  new Color(252, 3, 136),
+                "شرق", new Color(177, 3, 252),
+                "غرب", new Color(252, 3, 136),
                 "مرکز", new Color(7, 169, 250)
         );
         for (Universities uObj : universities) {
@@ -255,20 +253,20 @@ public class GraphPanel extends JPanel {
             if (pt == null) continue;
             Color c = colors.getOrDefault(uObj.getUniversityLocation(), Color.GREEN);
             g2.setColor(c);
-            g2.fillOval(pt.x - NODE_RADIUS, pt.y - NODE_RADIUS, NODE_RADIUS*2, NODE_RADIUS*2);
+            g2.fillOval(pt.x - NODE_RADIUS, pt.y - NODE_RADIUS,
+                    NODE_RADIUS * 2, NODE_RADIUS * 2);
             g2.setColor(Color.BLACK);
-            g2.drawString(uObj.getUniversityName(), pt.x + NODE_RADIUS + 2, pt.y);
+            g2.drawString(uObj.getUniversityName(),
+                    pt.x + NODE_RADIUS + 2, pt.y);
         }
-
 
         // رسم آدمک‌ها
         g2.setColor(Color.MAGENTA);
         for (AnimatedStudent anim : animations) {
             Point p = anim.getCurrentPosition();
-            int r = NODE_RADIUS; // یا کوچکتر مثلاً 6
-            g2.fillOval(p.x - r, p.y - r, 2*r, 2*r);
+            int r = NODE_RADIUS;
+            g2.fillOval(p.x - r, p.y - r, 2 * r, 2 * r);
         }
-
     }
 
     /** دیالوگ پیشنهاد مسیر و رزرو هوشمند */
@@ -523,16 +521,22 @@ public class GraphPanel extends JPanel {
                 label.setText(r.getStudentName() +
                         " | مسیر: " + fullPath +
                         " | کمترین ظرفیت: " + minCap);
-                if (minCap <= 0) {
-                    label.setForeground(Color.RED);
+
+                // ➞ حالا رنگِ متن را بسته به قابلیت رفتنِ مسیر تنظیم می‌کنیم
+                if (minCap > 0) {
+                    label.setForeground(isSelected
+                            ? list.getSelectionForeground()
+                            : Color.BLACK);
                 } else {
                     label.setForeground(isSelected
                             ? list.getSelectionForeground()
-                            : list.getForeground());
+                            : Color.RED);
                 }
+
                 return label;
             }
         });
+
 
         JScrollPane scroll = new JScrollPane(list);
         scroll.setPreferredSize(new Dimension(400, 200));
