@@ -76,6 +76,11 @@ public class GraphUtils {
      * @param edge یالی که ظرفیتش قرار است افزایش یابد
      */
     public static void incrementCapacity(UniPaths edge) {
-        edge.setRemainingCapacity(edge.getRemainingCapacity() + 1);
+        int newCap = edge.getRemainingCapacity() + 1;
+        if (newCap > edge.getCapacity()) {
+            newCap = edge.getCapacity();
+        }
+        edge.setRemainingCapacity(newCap);
     }
+
 }

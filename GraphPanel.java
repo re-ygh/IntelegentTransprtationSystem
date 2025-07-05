@@ -4,6 +4,7 @@ import java.awt.event.*;
 import java.awt.geom.QuadCurve2D;
 import java.util.*;
 import java.util.List;
+import javax.swing.Timer;
 
 /**
  * این کلاس نمای گرافیکی از گراف دانشگاهی را رسم می‌کند،
@@ -17,6 +18,7 @@ public class GraphPanel extends JPanel {
     private Map<String, Point> universityPositions;
     private List<Universities> universities;
     private List<UniPaths> mstEdges = null;
+    private List<AnimatedStudent> animations = new ArrayList<>();
 
     // صف اولویت‌دار رزروها بر اساس زمان رزرو
     private PriorityQueue<Reservation> reservations = new PriorityQueue<>();
@@ -257,6 +259,16 @@ public class GraphPanel extends JPanel {
             g2.setColor(Color.BLACK);
             g2.drawString(uObj.getUniversityName(), pt.x + NODE_RADIUS + 2, pt.y);
         }
+
+
+        // رسم آدمک‌ها
+        g2.setColor(Color.MAGENTA);
+        for (AnimatedStudent anim : animations) {
+            Point p = anim.getCurrentPosition();
+            int r = NODE_RADIUS; // یا کوچکتر مثلاً 6
+            g2.fillOval(p.x - r, p.y - r, 2*r, 2*r);
+        }
+
     }
 
     /** دیالوگ پیشنهاد مسیر و رزرو هوشمند */
@@ -269,7 +281,7 @@ public class GraphPanel extends JPanel {
         );
         dialog.setLayout(new BorderLayout(10, 10));
 
-        // --- پانل ورودی ---
+        // --- پنل ورودی ---
         JTextField studentField = new JTextField(12);
         String[] uniNames = universities.stream()
                 .map(Universities::getUniversityName)
@@ -397,6 +409,10 @@ public class GraphPanel extends JPanel {
                         new String[]{"رزرو", "تغییر مسیر"},
                         "رزرو");
                 if (choice == 0) {
+                    for (UniPaths e2 : bestPath) {
+                        // حتی اگر ظرفیت <=0 باشد، منفی هم بشود
+                        e2.setRemainingCapacity(e2.getRemainingCapacity() - 1);
+                    }
                     // رزرو
                     reservations.add(new Reservation(student, origin, dest, bestPath));
                     showReservationDialog();
@@ -410,6 +426,9 @@ public class GraphPanel extends JPanel {
                                 "مسیر دیگری یافت نشد.",
                                 "خطا", JOptionPane.WARNING_MESSAGE);
                     } else {
+                        List<UniPaths> bestPath2 = UniPaths.findShortestPathEdges(paths, dest, origin);
+
+                        reservations.add(new Reservation(student, origin, dest, bestPath2));
                         repaint();
                         dialog.dispose();
                     }
@@ -423,7 +442,8 @@ public class GraphPanel extends JPanel {
                             "خطا در رزرو مسیر.",
                             "خطا", JOptionPane.ERROR_MESSAGE);
                 } else {
-
+                    List<UniPaths> bestPath3 = UniPaths.findShortestPathEdges(paths, dest, origin);
+                    reservations.add(new Reservation(student, origin, dest, bestPath3));
                     repaint();
                     dialog.dispose();
                 }
@@ -536,11 +556,31 @@ public class GraphPanel extends JPanel {
     private void moveNextStudent(DefaultListModel<Reservation> model) {
         Reservation next = reservations.poll();
         if (next == null) return;
-        for (UniPaths edge : next.getPathEdges()) {
-            GraphUtils.incrementCapacity(edge);
-        }
-        updateReservationModel(model);
+
+        // ۱) لیست یال‌ها و نقاط مسیر رو می‌سازیم
+        List<UniPaths> pathEdges = next.getPathEdges();
+        List<Point> pathPts = buildPathPoints(pathEdges);
+
+        Collections.reverse(pathPts);
+
+        // ۲) انیمیشن رو ایجاد می‌کنیم
+        AnimatedStudent anim = new AnimatedStudent(
+                pathPts,
+                50,   // هر ۵۰ میلی‌ثانیه یک گام
+                () -> {
+                    // وقتی رسید به مقصد، ظرفیت‌ها آزاد می‌شن و لیست رزرو بروزرسانی می‌شه
+                    for (UniPaths edge : pathEdges) {
+                        GraphUtils.incrementCapacity(edge);
+                    }
+                    SwingUtilities.invokeLater(() -> {
+                        updateReservationModel(model);
+                    });
+                }
+        );
+        animations.add(anim);
+        anim.start();
     }
+
 
     /** به‌روز کردن مدل لیست بعد از هر حرکت */
     private void updateReservationModel(DefaultListModel<Reservation> model) {
@@ -551,4 +591,46 @@ public class GraphPanel extends JPanel {
             model.addElement(r);
         }
     }
+
+
+    private class AnimatedStudent {
+        List<Point> pathPoints;    // کل نقاط مسیر (شامل نقاط واسط)
+        int currentIndex = 0;      // نقطه‌ای که الان قراره رسم بشه
+        Timer timer;               // Swing Timer برای حرکت گام‌به‌گام
+
+        AnimatedStudent(List<Point> pts, int delayMs, Runnable onComplete) {
+            this.pathPoints = pts;
+            timer = new Timer(delayMs, e -> {
+                currentIndex++;
+                if (currentIndex >= pathPoints.size()) {
+                    timer.stop();
+                    onComplete.run();            // ظرفیت‌ها رو آزاد کن
+                    animations.remove(this);     // حذف انیمیشن
+                }
+                repaint();
+            });
+        }
+        void start() { timer.start(); }
+        Point getCurrentPosition() {
+            return pathPoints.get(Math.min(currentIndex, pathPoints.size()-1));
+        }
+    }
+
+    private List<Point> buildPathPoints(List<UniPaths> edges) {
+        List<Point> pts = new ArrayList<>();
+        for (UniPaths e : edges) {
+            Point a = universityPositions.get(e.getStartLocation());
+            Point b = universityPositions.get(e.getEndLocation());
+            int steps = 20;
+            for (int i = 0; i < steps; i++) {
+                double t = i / (double)(steps-1);
+                int x = (int)(a.x + t*(b.x - a.x));
+                int y = (int)(a.y + t*(b.y - a.y));
+                pts.add(new Point(x, y));
+            }
+        }
+        return pts;
+    }
+
+
 }
