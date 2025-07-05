@@ -1,18 +1,20 @@
 import javax.swing.*;
+import javax.swing.Timer;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.QuadCurve2D;
 import java.util.*;
 import java.util.List;
-import javax.swing.Timer;
 
 /**
  * این کلاس نمای گرافیکی از گراف دانشگاهی را رسم می‌کند،
+ * با قابلیت نمایش نمودار حرارتی (heatmap) برای میزان استفاده از مسیرها،
  * دکمه‌های نمایشی، پیشنهاد مسیر/رزرو هوشمند،
- * نمایش لیست رزرو با صف اولویت‌دار و حرکت دانشجویان را دارد.
+ * نمایش لیست رزرو با صف اولویت‌دار و حرکت دانشجویان.
  */
 public class GraphPanel extends JPanel {
     private static final int NODE_RADIUS = 10;
+    private static final int HEATMAP_MARGIN = 20;  // فاصله حاشیه برای دیالوگ Heatmap
 
     private List<UniPaths> paths;
     private Map<String, Point> universityPositions;
@@ -27,6 +29,10 @@ public class GraphPanel extends JPanel {
     private String dragStartNode = null;
     private Point  dragCurrentPoint = null;
 
+    // برای heatmap: شمارش استفاده از مسیرها
+    private final Map<UniPaths, Integer> usageCount = new HashMap<>();
+    private int maxUsage = 1;
+
     public GraphPanel(List<UniPaths> paths,
                       Map<String, Point> positions,
                       List<Universities> universities) {
@@ -35,7 +41,19 @@ public class GraphPanel extends JPanel {
         this.universities = universities;
         setupTopButtons();
         setupMouseListeners();
+        // Timer برای بروزرسانی نمایش Heatmap
+        new Timer(1000, e -> repaint()).start();
     }
+
+    /**
+     * ثبت یک استفاده از مسیر جهت نمایش در Heatmap
+     */
+    public void recordUsage(UniPaths path) {
+        int count = usageCount.getOrDefault(path, 0) + 1;
+        usageCount.put(path, count);
+        maxUsage = Math.max(maxUsage, count);
+    }
+
 
     private void setupTopButtons() {
         JButton reachButton = new JButton("بررسی ارتباط دو دانشگاه (حداکثر ۲ گام)");
@@ -54,14 +72,103 @@ public class GraphPanel extends JPanel {
         JButton reservationButton = new JButton("لیست رزرو");
         reservationButton.addActionListener(e -> showReservationDialog());
 
+        // دکمه جدید برای نمایش پنل Heatmap
+        JButton heatmapButton = new JButton("نمایش Heatmap جداگانه");
+        heatmapButton.addActionListener(e -> showHeatmapDialog());
+
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         topPanel.setBackground(new Color(117, 166, 121));
         topPanel.add(reachButton);
         topPanel.add(mstButton);
         topPanel.add(suggestButton);
         topPanel.add(reservationButton);
+        topPanel.add(heatmapButton);
         setLayout(new BorderLayout());
         add(topPanel, BorderLayout.NORTH);
+    }
+
+    /** نمایش پنل جداگانه Heatmap */
+    private void showHeatmapDialog() {
+        // محاسبه حدود پنل بر اساس مختصات نودها
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
+        for (Point pt : universityPositions.values()) {
+            minX = Math.min(minX, pt.x);
+            minY = Math.min(minY, pt.y);
+            maxX = Math.max(maxX, pt.x);
+            maxY = Math.max(maxY, pt.y);
+        }
+        int width = maxX - minX + NODE_RADIUS * 2 + HEATMAP_MARGIN * 2;
+        int height = maxY - minY + NODE_RADIUS * 2 + HEATMAP_MARGIN * 2;
+
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
+                "Heatmap جداگانه", false);
+        int finalMinX = minX;
+        int finalMinY = minY;
+        JPanel heatPanel = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                        RenderingHints.VALUE_ANTIALIAS_ON);
+                // جابجایی برای مرکز کردن
+                g2.translate(HEATMAP_MARGIN - finalMinX, HEATMAP_MARGIN - finalMinY);
+
+                // رسم یال‌ها با Heatmap
+                Map<String, Integer> pairCount = new HashMap<>();
+                for (UniPaths p : paths) {
+                    String a = p.getStartLocation(), b = p.getEndLocation();
+                    String key = a.compareTo(b) < 0 ? a+"|"+b : b+"|"+a;
+                    pairCount.put(key, pairCount.getOrDefault(key,0)+1);
+                }
+                for (UniPaths p : paths) {
+                    Point a = universityPositions.get(p.getStartLocation());
+                    Point b = universityPositions.get(p.getEndLocation());
+                    if (a==null||b==null) continue;
+                    int usage = usageCount.getOrDefault(p,0);
+                    if (usage > 0) {
+                        float ratio = Math.min(1f, (float) usage / maxUsage);
+                        Color heatColor = new Color(1.0f, 1.0f - ratio, 1.0f - ratio);
+                        g2.setColor(heatColor);
+                        g2.setStroke(new BasicStroke(2 + ratio * 4));
+                    } else {
+                        g2.setColor(p.isHighlighted()?Color.RED:
+                                mstEdges !=null && mstEdges.contains(p)?Color.BLUE:
+                                        p.isRandom()?Color.LIGHT_GRAY:Color.BLACK);
+                        g2.setStroke(new BasicStroke(2));
+                    }
+                    String u=p.getStartLocation(), v=p.getEndLocation();
+                    String key = u.compareTo(v)<0 ? u+"|"+v : v+"|"+u;
+                    if (pairCount.getOrDefault(key,0)>1 && u.compareTo(v)>0) {
+                        double x1=a.x,y1=a.y,x2=b.x,y2=b.y;
+                        double mx=(x1+x2)/2, my=(y1+y2)/2;
+                        double dx=x2-x1, dy=y2-y1;
+                        double len=Math.hypot(dx,dy); if(len==0) len=1;
+                        double nx=-dy/len, ny=dx/len;
+                        double offset=40;
+                        QuadCurve2D curve=new QuadCurve2D.Double(
+                                x1,y1, mx+nx*offset, my+ny*offset, x2,y2);
+                        g2.draw(curve);
+                    } else {
+                        g2.drawLine(a.x,a.y,b.x,b.y);
+                    }
+                }
+                // رسم نودها
+                for (Map.Entry<String, Point> e : universityPositions.entrySet()) {
+                    Point p=e.getValue();
+                    g2.setColor(Color.BLUE);
+                    g2.fillOval(p.x-NODE_RADIUS,p.y-NODE_RADIUS,
+                            NODE_RADIUS*2,NODE_RADIUS*2);
+                    g2.setColor(Color.BLACK);
+                    g2.drawString(e.getKey(), p.x+NODE_RADIUS, p.y-NODE_RADIUS);
+                }
+            }
+        };
+        heatPanel.setPreferredSize(new Dimension(width, height));
+        dialog.add(new JScrollPane(heatPanel));
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 
     private void setupMouseListeners() {
@@ -195,9 +302,9 @@ public class GraphPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
-        g2.setStroke(new BasicStroke(2));
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // رسم یال‌ها
+        // رسم یال‌ها با توجه به heatmap
         Map<String, Integer> pairCount = new HashMap<>();
         for (UniPaths p : paths) {
             String u = p.getStartLocation(), v = p.getEndLocation();
@@ -208,28 +315,27 @@ public class GraphPanel extends JPanel {
             Point a = universityPositions.get(p.getStartLocation());
             Point b = universityPositions.get(p.getEndLocation());
             if (a == null || b == null) continue;
+                g2.setStroke(new BasicStroke(2));
+                if (p.isHighlighted()) g2.setColor(Color.RED);
+                else if (mstEdges != null && mstEdges.contains(p)) g2.setColor(Color.BLUE);
+                else if (p.isRandom()) g2.setColor(Color.LIGHT_GRAY);
+                else g2.setColor(Color.BLACK);
+
             String u = p.getStartLocation(), v = p.getEndLocation();
             String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
-            if (p.isHighlighted()) {
-                g2.setColor(Color.RED);
-            } else if (mstEdges != null && mstEdges.contains(p)) {
-                g2.setColor(Color.BLUE);
-            } else if (p.isRandom()) {
-                g2.setColor(Color.LIGHT_GRAY);
-            } else {
-                g2.setColor(Color.BLACK);
-            }
+            // رسم منحنی یا خط مستقیم
             if (pairCount.getOrDefault(key, 0) > 1 && u.compareTo(v) > 0) {
-                // رسم منحنی
                 double x1 = a.x, y1 = a.y, x2 = b.x, y2 = b.y;
                 double mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
                 double dx = x2 - x1, dy = y2 - y1;
-                double len = Math.hypot(dx, dy); if (len == 0) len = 1;
+                double len = Math.hypot(dx, dy);
+                if (len == 0) len = 1;
                 double nx = -dy / len, ny = dx / len;
                 double offset = 40;
                 double cx = mx + nx * offset, cy = my + ny * offset;
                 QuadCurve2D curve = new QuadCurve2D.Double(x1, y1, cx, cy, x2, y2);
                 g2.draw(curve);
+                // نمایش هزینه روی منحنی
                 g2.setColor(Color.BLACK);
                 g2.drawString(String.valueOf(p.getCost()), (int) cx, (int) cy);
             } else {
@@ -256,11 +362,10 @@ public class GraphPanel extends JPanel {
             g2.fillOval(pt.x - NODE_RADIUS, pt.y - NODE_RADIUS,
                     NODE_RADIUS * 2, NODE_RADIUS * 2);
             g2.setColor(Color.BLACK);
-            g2.drawString(uObj.getUniversityName(),
-                    pt.x + NODE_RADIUS + 2, pt.y);
+            g2.drawString(uObj.getUniversityName(), pt.x + NODE_RADIUS + 2, pt.y);
         }
 
-        // رسم آدمک‌ها
+        // رسم آدمک‌ها (انیمیشن دانشجو)
         g2.setColor(Color.MAGENTA);
         for (AnimatedStudent anim : animations) {
             Point p = anim.getCurrentPosition();
@@ -446,6 +551,11 @@ public class GraphPanel extends JPanel {
                     dialog.dispose();
                 }
             }
+            for (UniPaths edge : bestPath) {
+               recordUsage(edge);
+            }
+            repaint();
+
         });
 
         cancelButton.addActionListener(e -> dialog.dispose());
@@ -489,7 +599,6 @@ public class GraphPanel extends JPanel {
         }
     }
 
-    // اصلاح showReservationDialog برای نمایش ظرفیت‌های مسیر
     /** دیالوگ نمایش لیست رزروها با صف اولویت‌دار */
     private void showReservationDialog() {
         JDialog dialog = new JDialog(
@@ -561,24 +670,28 @@ public class GraphPanel extends JPanel {
         Reservation next = reservations.poll();
         if (next == null) return;
 
-        // ۱) لیست یال‌ها و نقاط مسیر رو می‌سازیم
         List<UniPaths> pathEdges = next.getPathEdges();
-        List<Point> pathPts = buildPathPoints(pathEdges);
+        // ثبت استفاده برای heatmap
+        for (UniPaths edge : pathEdges) {
+            recordUsage(edge);
+        }
 
+        List<Point> pathPts = buildPathPoints(pathEdges);
         Collections.reverse(pathPts);
 
-        // ۲) انیمیشن رو ایجاد می‌کنیم
         AnimatedStudent anim = new AnimatedStudent(
                 pathPts,
-                50,   // هر ۵۰ میلی‌ثانیه یک گام
+                50,
                 () -> {
-                    // وقتی رسید به مقصد، ظرفیت‌ها آزاد می‌شن و لیست رزرو بروزرسانی می‌شه
+                    // وقتی رسید به مقصد، ظرفیت‌ها آزاد می‌شن
                     for (UniPaths edge : pathEdges) {
                         GraphUtils.incrementCapacity(edge);
                     }
                     SwingUtilities.invokeLater(() -> {
                         updateReservationModel(model);
                     });
+                    // حتماً repaint کنید تا heatmap و گراف اصلی آپدیت بشه
+                    repaint();
                 }
         );
         animations.add(anim);
