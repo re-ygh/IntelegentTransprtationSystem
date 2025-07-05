@@ -15,7 +15,9 @@ public class UniPaths implements Serializable {
  private boolean isRandom;        // مشخص می‌کند آیا یال به‌صورت خودکار تولید شده یا دستی
  private int remainingCapacity;
  private boolean highlighted = false;  // هایلایت (قرمز) برای مسیر نهایی
-private List<String> reservations = new ArrayList<>();
+ private List<String> reservations = new ArrayList<>();
+ public static List<UniPaths> DijkstraPaths = new ArrayList<>();
+
  public UniPaths(int startTime, int endTime, int cost, int capacity,
                  String startLocation, String endLocation, boolean isRandom, int remainingCapacity,List<String> reservations) {
   this.startTime = startTime;
@@ -85,6 +87,9 @@ private List<String> reservations = new ArrayList<>();
   * @return true اگر مسیر یافت شود، false در غیر این صورت
   */
  public static Boolean DijkstraShortestPath(List<UniPaths> allPaths, String src, String dest, boolean reduceCapacity) {
+
+  DijkstraPaths.clear();
+
   // ۱. پاکسازی هایلایت‌های قبلی
   for (UniPaths p : allPaths) {
    p.setHighlighted(false);
@@ -168,6 +173,7 @@ private List<String> reservations = new ArrayList<>();
     if (reduceCapacity) {
      edge.setRemainingCapacity(edge.getRemainingCapacity() - 1);
     }
+     DijkstraPaths.add(edge);
    }
 
    break;
@@ -175,69 +181,4 @@ private List<String> reservations = new ArrayList<>();
 
   return true;
  }
-
-
-
- /**
-  * یافتن کوتاه‌ترین مسیر بر اساس کمترین (هزینه + زمان)
-  * **بدون** درنظر گرفتن ظرفیت؛
-  * برای شناسایی این که آیا ظرفیت دارد یا خیر.
-  * @return لیست یال‌های مسیر یا خالی اگر مسیری نباشد
-  */
- public static List<UniPaths> findShortestPathEdges(
-         List<UniPaths> allPaths, String src, String dest
- ) {
-  Map<String, List<UniPaths>> adj = new HashMap<>();
-  for (UniPaths p : allPaths) {
-   int dur = p.getEndTime() - p.getStartTime();
-   if (dur <= 0) continue;
-   adj.computeIfAbsent(p.getStartLocation(), k -> new ArrayList<>())
-           .add(p);
-  }
-
-  Map<String, Double> dist = new HashMap<>();
-  Map<String, UniPaths> prevEdge = new HashMap<>();
-  Set<String> visited = new HashSet<>();
-
-  for (String node : adj.keySet()) {
-   dist.put(node, Double.POSITIVE_INFINITY);
-  }
-  dist.put(src, 0.0);
-
-  PriorityQueue<String> pq = new PriorityQueue<>(Comparator.comparing(dist::get));
-  pq.add(src);
-
-  while (!pq.isEmpty()) {
-   String u = pq.poll();
-   if (visited.contains(u)) continue;
-   visited.add(u);
-   if (u.equals(dest)) break;
-
-   double uDist = dist.getOrDefault(u, Double.POSITIVE_INFINITY);
-   for (UniPaths edge : adj.getOrDefault(u, Collections.emptyList())) {
-    String v = edge.getEndLocation();
-    double weight = edge.getCost() + (edge.getEndTime() - edge.getStartTime());
-    double alt = uDist + weight;
-    if (alt < dist.getOrDefault(v, Double.POSITIVE_INFINITY)) {
-     dist.put(v, alt);
-     prevEdge.put(v, edge);
-     pq.add(v);
-    }
-   }
-  }
-
-  if (!prevEdge.containsKey(dest)) {
-   return Collections.emptyList();
-  }
-  List<UniPaths> path = new ArrayList<>();
-  String cur = dest;
-  while (!cur.equals(src)) {
-   UniPaths e = prevEdge.get(cur);
-   path.add(e);
-   cur = e.getStartLocation();
-  }
-  Collections.reverse(path);
-  return path;
- }
-
 }

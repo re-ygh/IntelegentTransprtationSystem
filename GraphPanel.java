@@ -59,6 +59,16 @@ public class GraphPanel extends JPanel {
         maxUsage = Math.max(maxUsage, count);
     }
 
+    /**
+     * آپدیت heatmap وقتی ظرفیت تغییر می‌کند
+     */
+    public void updateHeatmap() {
+        if (heatPanel != null && heatPanel.isShowing()) {
+            heatPanel.repaint();
+        }
+        repaint();
+    }
+
 
     private void setupTopButtons() {
         JButton reachButton = new JButton("بررسی ارتباط دو دانشگاه (حداکثر ۲ گام)");
@@ -138,6 +148,12 @@ public class GraphPanel extends JPanel {
                         int usage = usageCount.getOrDefault(p, 0);
                         // constant stroke
                         g2.setStroke(new BasicStroke(2));
+
+                        // بررسی ظرفیت برای یال‌های منحنی
+                        String u = p.getStartLocation(), v = p.getEndLocation();
+                        String key = u.compareTo(v) < 0 ? u+"|"+v : v+"|"+u;
+                        boolean isDuplicate = pairCount.getOrDefault(key,0) > 1;
+
                         if (usage > 0) {
                             // فرض می‌کنیم در UniPaths متدی دارید به نام getCapacity()
                             int capacity = p.getCapacity();
@@ -175,9 +191,7 @@ public class GraphPanel extends JPanel {
                             else                        g2.setColor(Color.BLACK);
                         }
 
-                        String u = p.getStartLocation(), v = p.getEndLocation();
-                        String key = u.compareTo(v) < 0 ? u+"|"+v : v+"|"+u;
-                        if (pairCount.getOrDefault(key,0) > 1 && u.compareTo(v) > 0) {
+                        if (isDuplicate && u.compareTo(v) > 0) {
                             // curved duplicate edge
                             double x1=a.x, y1=a.y, x2=b.x, y2=b.y;
                             double mx=(x1+x2)/2, my=(y1+y2)/2;
@@ -192,7 +206,8 @@ public class GraphPanel extends JPanel {
                             drawArrowOnCurve(g2, curve);
                         } else {
                             // straight directed edge
-                            drawArrow(g2, b.x, b.y, a.x, a.y);                        }
+                            drawArrow(g2, b.x, b.y, a.x, a.y);
+                        }
                     }
 
                     // draw nodes
@@ -363,16 +378,22 @@ public class GraphPanel extends JPanel {
             Point a = universityPositions.get(p.getStartLocation());
             Point b = universityPositions.get(p.getEndLocation());
             if (a == null || b == null) continue;
-                g2.setStroke(new BasicStroke(2));
-                if (p.isHighlighted()) g2.setColor(Color.RED);
-                else if (mstEdges != null && mstEdges.contains(p)) g2.setColor(Color.BLUE);
-                else if (p.isRandom()) g2.setColor(Color.LIGHT_GRAY);
-                else g2.setColor(Color.BLACK);
 
+            g2.setStroke(new BasicStroke(2));
+
+            // بررسی ظرفیت برای یال‌های منحنی
             String u = p.getStartLocation(), v = p.getEndLocation();
             String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
+            boolean isDuplicate = pairCount.getOrDefault(key, 0) > 1;
+
+            // انتخاب رنگ بر اساس وضعیت یال
+            if (p.isHighlighted()) g2.setColor(Color.RED);
+            else if (mstEdges != null && mstEdges.contains(p)) g2.setColor(Color.BLUE);
+            else if (p.isRandom()) g2.setColor(Color.LIGHT_GRAY);
+            else g2.setColor(Color.BLACK);
+
             // رسم منحنی یا خط مستقیم
-            if (pairCount.getOrDefault(key, 0) > 1 && u.compareTo(v) > 0) {
+            if (isDuplicate && u.compareTo(v) > 0) {
                 double x1 = a.x, y1 = a.y, x2 = b.x, y2 = b.y;
                 double mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
                 double dx = x2 - x1, dy = y2 - y1;
@@ -384,16 +405,19 @@ public class GraphPanel extends JPanel {
                 QuadCurve2D curve = new QuadCurve2D.Double(x2, y2, cx, cy, x1, y1);
                 g2.draw(curve);
                 drawArrowOnCurve(g2, curve);
+
+                // نمایش هزینه و ظرفیت روی منحنی
                 g2.setColor(Color.BLACK);
-                g2.drawString(String.valueOf(p.getCost()), (int) cx, (int) cy);
-                // نمایش هزینه روی منحنی
-                g2.setColor(Color.BLACK);
-                g2.drawString(String.valueOf(p.getCost()), (int) cx, (int) cy);
+                String costText = p.getCost() + "(" + p.getRemainingCapacity() + ")";
+                g2.drawString(costText, (int) cx, (int) cy);
             } else {
                 drawArrow(g2, b.x, b.y, a.x, a.y);
+
+                // نمایش هزینه و ظرفیت روی خط مستقیم
                 g2.setColor(Color.BLACK);
-                g2.drawString(String.valueOf(p.getCost()),
-                        (a.x + b.x)/2, (a.y + b.y)/2);            }
+                String costText = p.getCost() + "(" + p.getRemainingCapacity() + ")";
+                g2.drawString(costText, (a.x + b.x)/2, (a.y + b.y)/2);
+            }
         }
         if (dragStartNode != null && dragCurrentPoint != null) {
             Point a = universityPositions.get(dragStartNode);
@@ -518,8 +542,7 @@ public class GraphPanel extends JPanel {
                 return;
             }
             for (UniPaths p : paths) p.setHighlighted(false);
-            boolean found = UniPaths.DijkstraShortestPath(paths, dest, origin, false);
-            if (!found) {
+            if (!UniPaths.DijkstraShortestPath(paths, dest, origin, false)) {
                 JOptionPane.showMessageDialog(dialog,
                         "مسیر مناسبی یافت نشد.",
                         "خطا", JOptionPane.WARNING_MESSAGE);
@@ -548,15 +571,14 @@ public class GraphPanel extends JPanel {
             }
 
             // ۱) مسیر بر اساس هزینه+زمان بی‌درنظر ظرفیت بیاب (برای چک ظرفیت)
-            List<UniPaths> bestPath = UniPaths.findShortestPathEdges(paths, dest, origin);
-            if (bestPath.isEmpty()) {
+            if (!UniPaths.DijkstraShortestPath(paths, dest, origin, false)) {
                 JOptionPane.showMessageDialog(dialog,
                         "مسیر مناسبی یافت نشد.",
                         "خطا", JOptionPane.WARNING_MESSAGE);
                 return;
             }
             // ۲) اگر هر کدام از یال‌ها ظرفیت صفر دارند
-            boolean anyFull = bestPath.stream()
+            boolean anyFull = UniPaths.DijkstraPaths.stream()
                     .anyMatch(ep -> ep.getRemainingCapacity() <= 0);
             if (anyFull) {
                 int choice = JOptionPane.showOptionDialog(dialog,
@@ -569,16 +591,14 @@ public class GraphPanel extends JPanel {
                         new String[]{"رزرو", "تغییر مسیر"},
                         "رزرو");
                 if (choice == 0) {
-                    for (UniPaths e2 : bestPath) {
+                    for (UniPaths e2 : UniPaths.DijkstraPaths) {
                         // حتی اگر ظرفیت <=0 باشد، منفی هم بشود
                         e2.setRemainingCapacity(e2.getRemainingCapacity() - 1);
                     }
                     // رزرو
-                    reservations.add(new Reservation(student, origin, dest, bestPath));
+                    reservations.add(new Reservation(student, origin, dest, UniPaths.DijkstraPaths));
                     showReservationDialog();
-                    if (heatPanel != null && heatPanel.isShowing()) {
-                        heatPanel.repaint();
-                    }
+                    updateHeatmap();
                     dialog.dispose();
                 } else {
                     // تغییر مسیر: حالا مسیر بعدی را با کاهش ظرفیت واقعی پیدا کن
@@ -589,13 +609,8 @@ public class GraphPanel extends JPanel {
                                 "مسیر دیگری یافت نشد.",
                                 "خطا", JOptionPane.WARNING_MESSAGE);
                     } else {
-                        List<UniPaths> bestPath2 = UniPaths.findShortestPathEdges(paths, dest, origin);
-
-                        reservations.add(new Reservation(student, origin, dest, bestPath2));
-                        repaint();
-                        if (heatPanel != null && heatPanel.isShowing()) {
-                            heatPanel.repaint();
-                        }
+                        reservations.add(new Reservation(student, origin, dest, UniPaths.DijkstraPaths));
+                        updateHeatmap();
                         dialog.dispose();
                     }
                 }
@@ -608,19 +623,16 @@ public class GraphPanel extends JPanel {
                             "خطا در رزرو مسیر.",
                             "خطا", JOptionPane.ERROR_MESSAGE);
                 } else {
-                    List<UniPaths> bestPath3 = UniPaths.findShortestPathEdges(paths, dest, origin);
-                    reservations.add(new Reservation(student, origin, dest, bestPath3));
-                    repaint();
-                    if (heatPanel != null && heatPanel.isShowing()) {
-                        heatPanel.repaint();
-                    }
-                    dialog.dispose();
+                    reservations.add(new Reservation(student, origin, dest, UniPaths.DijkstraPaths));
                 }
+
+                updateHeatmap();
+                dialog.dispose();
             }
-            for (UniPaths edge : bestPath) {
+            for (UniPaths edge : UniPaths.DijkstraPaths) {
                recordUsage(edge);
             }
-            repaint();
+            updateHeatmap();
 
         });
 
@@ -757,11 +769,14 @@ public class GraphPanel extends JPanel {
                         updateReservationModel(model);
                     });
                     // حتماً repaint کنید تا heatmap و گراف اصلی آپدیت بشه
-                    repaint();
+                    updateHeatmap();
                 }
         );
         animations.add(anim);
         anim.start();
+
+        // فوری heatmap را آپدیت کن
+        repaint();
         if (heatPanel != null && heatPanel.isShowing()) {
             heatPanel.repaint();
         }
@@ -794,6 +809,10 @@ public class GraphPanel extends JPanel {
                     animations.remove(this);     // حذف انیمیشن
                 }
                 repaint();
+                // آپدیت heatmap در هر فریم انیمیشن
+                if (heatPanel != null && heatPanel.isShowing()) {
+                    heatPanel.repaint();
+                }
             });
         }
         void start() { timer.start(); }
