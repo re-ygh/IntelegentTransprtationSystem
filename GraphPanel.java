@@ -33,6 +33,10 @@ public class GraphPanel extends JPanel {
     private final Map<UniPaths, Integer> usageCount = new HashMap<>();
     private int maxUsage = 1;
 
+    // برای نگهداری دیالوگ و پنل Heatmap
+    private JDialog heatmapDialog;
+    private JPanel heatPanel;
+
     public GraphPanel(List<UniPaths> paths,
                       Map<String, Point> positions,
                       List<Universities> universities) {
