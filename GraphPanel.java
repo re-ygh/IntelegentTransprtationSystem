@@ -478,6 +478,7 @@ public class GraphPanel extends JPanel {
 
         // تأیید نهایی (کاهش ظرفیت یا ورود به صف رزرو)
         okButton.addActionListener(e -> {
+            showHeatmapDialog();
             String student = studentField.getText().trim();
             String origin  = (String) originCombo.getSelectedItem();
             String dest    = (String) destCombo.getSelectedItem();
