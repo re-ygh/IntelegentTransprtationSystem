@@ -92,89 +92,132 @@ public class GraphPanel extends JPanel {
         add(topPanel, BorderLayout.NORTH);
     }
 
-    /** نمایش پنل جداگانه Heatmap */
+    /** یکبار بساز و هر بار فقط نمایش بده، با repaint خودکار */
     private void showHeatmapDialog() {
-        // محاسبه حدود پنل بر اساس مختصات نودها
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
-        for (Point pt : universityPositions.values()) {
-            minX = Math.min(minX, pt.x);
-            minY = Math.min(minY, pt.y);
-            maxX = Math.max(maxX, pt.x);
-            maxY = Math.max(maxY, pt.y);
-        }
-        int width = maxX - minX + NODE_RADIUS * 2 + HEATMAP_MARGIN * 2;
-        int height = maxY - minY + NODE_RADIUS * 2 + HEATMAP_MARGIN * 2;
-
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
-                "Heatmap جداگانه", false);
-        int finalMinX = minX;
-        int finalMinY = minY;
-        JPanel heatPanel = new JPanel() {
-            @Override protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2 = (Graphics2D) g;
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                        RenderingHints.VALUE_ANTIALIAS_ON);
-                // جابجایی برای مرکز کردن
-                g2.translate(HEATMAP_MARGIN - finalMinX, HEATMAP_MARGIN - finalMinY);
-
-                // رسم یال‌ها با Heatmap
-                Map<String, Integer> pairCount = new HashMap<>();
-                for (UniPaths p : paths) {
-                    String a = p.getStartLocation(), b = p.getEndLocation();
-                    String key = a.compareTo(b) < 0 ? a+"|"+b : b+"|"+a;
-                    pairCount.put(key, pairCount.getOrDefault(key,0)+1);
-                }
-                for (UniPaths p : paths) {
-                    Point a = universityPositions.get(p.getStartLocation());
-                    Point b = universityPositions.get(p.getEndLocation());
-                    if (a==null||b==null) continue;
-                    int usage = usageCount.getOrDefault(p,0);
-                    if (usage > 0) {
-                        float ratio = Math.min(1f, (float) usage / maxUsage);
-                        Color heatColor = new Color(1.0f, 1.0f - ratio, 1.0f - ratio);
-                        g2.setColor(heatColor);
-                        g2.setStroke(new BasicStroke(2 + ratio * 4));
-                    } else {
-                        g2.setColor(p.isHighlighted()?Color.RED:
-                                mstEdges !=null && mstEdges.contains(p)?Color.BLUE:
-                                        p.isRandom()?Color.LIGHT_GRAY:Color.BLACK);
-                        g2.setStroke(new BasicStroke(2));
-                    }
-                    String u=p.getStartLocation(), v=p.getEndLocation();
-                    String key = u.compareTo(v)<0 ? u+"|"+v : v+"|"+u;
-                    if (pairCount.getOrDefault(key,0)>1 && u.compareTo(v)>0) {
-                        double x1=a.x,y1=a.y,x2=b.x,y2=b.y;
-                        double mx=(x1+x2)/2, my=(y1+y2)/2;
-                        double dx=x2-x1, dy=y2-y1;
-                        double len=Math.hypot(dx,dy); if(len==0) len=1;
-                        double nx=-dy/len, ny=dx/len;
-                        double offset=40;
-                        QuadCurve2D curve=new QuadCurve2D.Double(
-                                x1,y1, mx+nx*offset, my+ny*offset, x2,y2);
-                        g2.draw(curve);
-                        drawArrowOnCurve(g2, curve);
-                    } else {
-                        drawArrow(g2, a.x, a.y, b.x, b.y);                    }
-                }
-                // رسم نودها
-                for (Map.Entry<String, Point> e : universityPositions.entrySet()) {
-                    Point p=e.getValue();
-                    g2.setColor(Color.BLUE);
-                    g2.fillOval(p.x-NODE_RADIUS,p.y-NODE_RADIUS,
-                            NODE_RADIUS*2,NODE_RADIUS*2);
-                    g2.setColor(Color.BLACK);
-                    g2.drawString(e.getKey(), p.x+NODE_RADIUS, p.y-NODE_RADIUS);
-                }
+        if (heatmapDialog == null) {
+            // calculate bounds
+            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
+            for (Point pt : universityPositions.values()) {
+                minX = Math.min(minX, pt.x);
+                minY = Math.min(minY, pt.y);
+                maxX = Math.max(maxX, pt.x);
+                maxY = Math.max(maxY, pt.y);
             }
-        };
-        heatPanel.setPreferredSize(new Dimension(width, height));
-        dialog.add(new JScrollPane(heatPanel));
-        dialog.pack();
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
+            int width  = maxX - minX + NODE_RADIUS*2 + HEATMAP_MARGIN*2;
+            int height = maxY - minY + NODE_RADIUS*2 + HEATMAP_MARGIN*2;
+
+            heatmapDialog = new JDialog(
+                    (Frame) SwingUtilities.getWindowAncestor(this),
+                    "Heatmap جداگانه", false
+            );
+            int finalMinX = minX, finalMinY = minY;
+
+            heatPanel = new JPanel() {
+                @Override protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    Graphics2D g2 = (Graphics2D) g;
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                            RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.translate(HEATMAP_MARGIN - finalMinX,
+                            HEATMAP_MARGIN - finalMinY);
+
+                    // count duplicate edges
+                    Map<String, Integer> pairCount = new HashMap<>();
+                    for (UniPaths p : paths) {
+                        String a = p.getStartLocation(), b = p.getEndLocation();
+                        String key = a.compareTo(b) < 0 ? a+"|"+b : b+"|"+a;
+                        pairCount.put(key, pairCount.getOrDefault(key,0)+1);
+                    }
+
+                    for (UniPaths p : paths) {
+                        Point a = universityPositions.get(p.getStartLocation());
+                        Point b = universityPositions.get(p.getEndLocation());
+                        if (a == null || b == null) continue;
+
+                        int usage = usageCount.getOrDefault(p, 0);
+                        // constant stroke
+                        g2.setStroke(new BasicStroke(2));
+                        if (usage > 0) {
+                            // فرض می‌کنیم در UniPaths متدی دارید به نام getCapacity()
+                            int capacity = p.getCapacity();
+                            // جلوگیری از تقسیم بر صفر
+                            float ratio = capacity > 0
+                                    ? Math.min(1f, (float) usage / capacity)
+                                    : 0f;
+                            // colour gradient: white → light-red → dark-red → brown
+                            Color heatColor;
+                            if (ratio < 0.5f) {
+                                // white → red
+                                float t = ratio / 0.5f;
+                                heatColor = new Color(
+                                        1f,
+                                        1f - t,
+                                        1f - t
+                                );
+                            } else {
+                                // red → brown
+                                float t = (ratio - 0.5f) / 0.5f;
+                                // interpolates red (1,0,0) → brown (0.6,0.2,0)
+                                heatColor = new Color(
+                                        1f - 0.4f*t,
+                                        0f + 0.2f*t,
+                                        0f
+                                );
+                            }
+                            g2.setColor(heatColor);
+                        } else {
+                            // no usage: fallback to highlight / MST / random / black
+                            if (p.isHighlighted())      g2.setColor(Color.RED);
+                            else if (mstEdges != null &&
+                                    mstEdges.contains(p)) g2.setColor(Color.BLUE);
+                            else if (p.isRandom())      g2.setColor(Color.LIGHT_GRAY);
+                            else                        g2.setColor(Color.BLACK);
+                        }
+
+                        String u = p.getStartLocation(), v = p.getEndLocation();
+                        String key = u.compareTo(v) < 0 ? u+"|"+v : v+"|"+u;
+                        if (pairCount.getOrDefault(key,0) > 1 && u.compareTo(v) > 0) {
+                            // curved duplicate edge
+                            double x1=a.x, y1=a.y, x2=b.x, y2=b.y;
+                            double mx=(x1+x2)/2, my=(y1+y2)/2;
+                            double dx=x2-x1, dy=y2-y1;
+                            double len=Math.hypot(dx,dy); if(len==0) len=1;
+                            double nx=-dy/len, ny=dx/len;
+                            double offset=40;
+                            QuadCurve2D curve = new QuadCurve2D.Double(
+                                    x2,y2, mx+nx*offset, my+ny*offset, x1,y1
+                            );
+                            g2.draw(curve);
+                            drawArrowOnCurve(g2, curve);
+                        } else {
+                            // straight directed edge
+                            drawArrow(g2, b.x, b.y, a.x, a.y);                        }
+                    }
+
+                    // draw nodes
+                    for (Map.Entry<String, Point> e : universityPositions.entrySet()) {
+                        Point p = e.getValue();
+                        g2.setColor(Color.BLUE);
+                        g2.fillOval(p.x-NODE_RADIUS, p.y-NODE_RADIUS,
+                                NODE_RADIUS*2, NODE_RADIUS*2);
+                        g2.setColor(Color.BLACK);
+                        g2.drawString(e.getKey(),
+                                p.x+NODE_RADIUS, p.y-NODE_RADIUS);
+                    }
+                }
+            };
+            heatPanel.setPreferredSize(new Dimension(width, height));
+            heatmapDialog.add(new JScrollPane(heatPanel));
+            heatmapDialog.pack();
+            heatmapDialog.setLocationRelativeTo(this);
+        }
+
+        // show (or bring to front) the existing dialog
+        heatmapDialog.setVisible(true);
+        heatmapDialog.toFront();
     }
+
 
     private void setupMouseListeners() {
         MouseAdapter ma = new MouseAdapter() {
@@ -338,7 +381,7 @@ public class GraphPanel extends JPanel {
                 double nx = -dy / len, ny = dx / len;
                 double offset = 40;
                 double cx = mx + nx * offset, cy = my + ny * offset;
-                QuadCurve2D curve = new QuadCurve2D.Double(x1, y1, cx, cy, x2, y2);
+                QuadCurve2D curve = new QuadCurve2D.Double(x2, y2, cx, cy, x1, y1);
                 g2.draw(curve);
                 drawArrowOnCurve(g2, curve);
                 g2.setColor(Color.BLACK);
@@ -347,7 +390,7 @@ public class GraphPanel extends JPanel {
                 g2.setColor(Color.BLACK);
                 g2.drawString(String.valueOf(p.getCost()), (int) cx, (int) cy);
             } else {
-                drawArrow(g2, a.x, a.y, b.x, b.y);
+                drawArrow(g2, b.x, b.y, a.x, a.y);
                 g2.setColor(Color.BLACK);
                 g2.drawString(String.valueOf(p.getCost()),
                         (a.x + b.x)/2, (a.y + b.y)/2);            }
@@ -488,7 +531,6 @@ public class GraphPanel extends JPanel {
 
         // تأیید نهایی (کاهش ظرفیت یا ورود به صف رزرو)
         okButton.addActionListener(e -> {
-            showHeatmapDialog();
             String student = studentField.getText().trim();
             String origin  = (String) originCombo.getSelectedItem();
             String dest    = (String) destCombo.getSelectedItem();
@@ -534,6 +576,9 @@ public class GraphPanel extends JPanel {
                     // رزرو
                     reservations.add(new Reservation(student, origin, dest, bestPath));
                     showReservationDialog();
+                    if (heatPanel != null && heatPanel.isShowing()) {
+                        heatPanel.repaint();
+                    }
                     dialog.dispose();
                 } else {
                     // تغییر مسیر: حالا مسیر بعدی را با کاهش ظرفیت واقعی پیدا کن
@@ -548,6 +593,9 @@ public class GraphPanel extends JPanel {
 
                         reservations.add(new Reservation(student, origin, dest, bestPath2));
                         repaint();
+                        if (heatPanel != null && heatPanel.isShowing()) {
+                            heatPanel.repaint();
+                        }
                         dialog.dispose();
                     }
                 }
@@ -563,6 +611,9 @@ public class GraphPanel extends JPanel {
                     List<UniPaths> bestPath3 = UniPaths.findShortestPathEdges(paths, dest, origin);
                     reservations.add(new Reservation(student, origin, dest, bestPath3));
                     repaint();
+                    if (heatPanel != null && heatPanel.isShowing()) {
+                        heatPanel.repaint();
+                    }
                     dialog.dispose();
                 }
             }
@@ -711,6 +762,9 @@ public class GraphPanel extends JPanel {
         );
         animations.add(anim);
         anim.start();
+        if (heatPanel != null && heatPanel.isShowing()) {
+            heatPanel.repaint();
+        }
     }
 
 
