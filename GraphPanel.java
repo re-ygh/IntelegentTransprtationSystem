@@ -2,6 +2,7 @@ import javax.swing.*;
 import javax.swing.Timer;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.Line2D;
 import java.awt.geom.QuadCurve2D;
 import java.util.*;
 import java.util.List;
@@ -153,9 +154,9 @@ public class GraphPanel extends JPanel {
                         QuadCurve2D curve=new QuadCurve2D.Double(
                                 x1,y1, mx+nx*offset, my+ny*offset, x2,y2);
                         g2.draw(curve);
+                        drawArrowOnCurve(g2, curve);
                     } else {
-                        g2.drawLine(a.x,a.y,b.x,b.y);
-                    }
+                        drawArrow(g2, a.x, a.y, b.x, b.y);                    }
                 }
                 // رسم نودها
                 for (Map.Entry<String, Point> e : universityPositions.entrySet()) {
@@ -339,14 +340,23 @@ public class GraphPanel extends JPanel {
                 double cx = mx + nx * offset, cy = my + ny * offset;
                 QuadCurve2D curve = new QuadCurve2D.Double(x1, y1, cx, cy, x2, y2);
                 g2.draw(curve);
+                drawArrowOnCurve(g2, curve);
+                g2.setColor(Color.BLACK);
+                g2.drawString(String.valueOf(p.getCost()), (int) cx, (int) cy);
                 // نمایش هزینه روی منحنی
                 g2.setColor(Color.BLACK);
                 g2.drawString(String.valueOf(p.getCost()), (int) cx, (int) cy);
             } else {
-                g2.drawLine(a.x, a.y, b.x, b.y);
+                drawArrow(g2, a.x, a.y, b.x, b.y);
                 g2.setColor(Color.BLACK);
                 g2.drawString(String.valueOf(p.getCost()),
-                        (a.x + b.x) / 2, (a.y + b.y) / 2);
+                        (a.x + b.x)/2, (a.y + b.y)/2);            }
+        }
+        if (dragStartNode != null && dragCurrentPoint != null) {
+            Point a = universityPositions.get(dragStartNode);
+            if (a != null) {
+                g2.setColor(Color.GRAY);
+                g2.drawLine(a.x, a.y, dragCurrentPoint.x, dragCurrentPoint.y);
             }
         }
 
@@ -754,5 +764,51 @@ public class GraphPanel extends JPanel {
         return pts;
     }
 
+    /**
+     * رسم یال جهت‌دار با سر پیکان در انتها
+     */
+    private void drawArrow(Graphics2D g2, double x1, double y1, double x2, double y2) {
+        // خودِ خط
+        g2.draw(new Line2D.Double(x1, y1, x2, y2));
+
+        double phi = Math.toRadians(25);
+        double barb = 15;
+        double theta = Math.atan2(y2 - y1, x2 - x1);
+
+        for (int i = 0; i < 2; i++) {
+            double rho = theta + (i == 0 ? phi : -phi);
+            double xx  = x2 - barb * Math.cos(rho);
+            double yy  = y2 - barb * Math.sin(rho);
+            g2.draw(new Line2D.Double(x2, y2, xx, yy));
+        }
+    }
+
+    /**
+     * متد کمکی برای رسم سر پیکان روی منحنی QuadCurve2D
+     */
+    private void drawArrowOnCurve(Graphics2D g2, QuadCurve2D q) {
+        // t نزدیک 1 برای پیدا کردن جهتِ منحنی
+        double t = 0.9;
+        double x1 = q.getX1(), y1 = q.getY1();
+        double cx = q.getCtrlX(), cy = q.getCtrlY();
+        double x2 = q.getX2(), y2 = q.getY2();
+
+        // نقطه روی منحنی
+        double xt = Math.pow(1 - t, 2) * x1 + 2 * (1 - t) * t * cx + t * t * x2;
+        double yt = Math.pow(1 - t, 2) * y1 + 2 * (1 - t) * t * cy + t * t * y2;
+        // مشتق برای زاویه
+        double dx = 2 * (1 - t) * (cx - x1) + 2 * t * (x2 - cx);
+        double dy = 2 * (1 - t) * (cy - y1) + 2 * t * (y2 - cy);
+        double theta = Math.atan2(dy, dx);
+
+        double phi = Math.toRadians(25);
+        double barb = 15;
+        for (int i = 0; i < 2; i++) {
+            double rho = theta + (i == 0 ? phi : -phi);
+            double xx = x2 - barb * Math.cos(rho);
+            double yy = y2 - barb * Math.sin(rho);
+            g2.draw(new Line2D.Double(x2, y2, xx, yy));
+        }
+    }
 
 }
