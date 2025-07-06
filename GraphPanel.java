@@ -6,6 +6,7 @@ import java.awt.geom.Line2D;
 import java.awt.geom.QuadCurve2D;
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * این کلاس نمای گرافیکی از گراف دانشگاهی را رسم می‌کند،
@@ -37,6 +38,13 @@ public class GraphPanel extends JPanel {
     // برای نگهداری دیالوگ و پنل Heatmap
     private JDialog heatmapDialog;
     private JPanel heatPanel;
+
+    private JDialog partitionDialog;
+    private JPanel previewPanel;
+    private List<UniPaths> previewEdges;
+    enum PreviewMode { REGION, GLOBAL }
+    private PreviewMode previewMode;
+
 
     public GraphPanel(List<UniPaths> paths,
                       Map<String, Point> positions,
@@ -81,6 +89,9 @@ public class GraphPanel extends JPanel {
         JButton heatmapButton = new JButton("نمایش Heatmap جداگانه");
         heatmapButton.addActionListener(e -> showHeatmapDialog());
 
+        JButton PartitionedMSTbtn = new JButton("نمایش Partitioned MST");
+        PartitionedMSTbtn.addActionListener(e -> computeAndShowPartitionedMST());
+
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         topPanel.setBackground(new Color(117, 166, 121));
         topPanel.add(reachButton);
@@ -88,6 +99,7 @@ public class GraphPanel extends JPanel {
         topPanel.add(suggestButton);
         topPanel.add(reservationButton);
         topPanel.add(heatmapButton);
+        topPanel.add(PartitionedMSTbtn);
         setLayout(new BorderLayout());
         add(topPanel, BorderLayout.NORTH);
     }
@@ -863,6 +875,132 @@ public class GraphPanel extends JPanel {
             double yy = y2 - barb * Math.sin(rho);
             g2.draw(new Line2D.Double(x2, y2, xx, yy));
         }
+    }
+
+    private void computeAndShowPartitionedMST() {
+        // یک‌بار دیالوگ را می‌سازیم
+        if (partitionDialog == null) {
+            partitionDialog = new JDialog(
+                    (Frame) SwingUtilities.getWindowAncestor(this),
+                    "نمایش MST مقیاس‌پذیر",
+                    false
+            );
+            partitionDialog.setLayout(new BorderLayout());
+
+            // ۱) پنل بالایی: انتخاب منطقه و دو دکمه
+            JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+            String[] regions = GraphPartitioner
+                    .partitionNodesByRegion(universities)
+                    .keySet().toArray(new String[0]);
+            JComboBox<String> regionCombo = new JComboBox<>(regions);
+            regionCombo.setSelectedIndex(-1);
+
+            JButton regionBtn = new JButton("نمایش MST منطقه‌ای");
+            JButton globalBtn = new JButton("نمایش MST کل");
+
+            topPanel.add(new JLabel("انتخاب منطقه:"));
+            topPanel.add(regionCombo);
+            topPanel.add(regionBtn);
+            topPanel.add(globalBtn);
+            partitionDialog.add(topPanel, BorderLayout.NORTH);
+
+            // ۲) پنل پیش‌نمایش گراف
+            previewPanel = new JPanel() {
+                @Override protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    Graphics2D g2 = (Graphics2D) g;
+                    g2.setRenderingHint(
+                            RenderingHints.KEY_ANTIALIASING,
+                            RenderingHints.VALUE_ANTIALIAS_ON
+                    );
+                    // رسم یال‌ها
+                    for (UniPaths p : paths) {
+                        Point a = universityPositions.get(p.getStartLocation());
+                        Point b = universityPositions.get(p.getEndLocation());
+                        if (a == null || b == null) continue;
+                        // رنگ پیش‌فرض
+                        g2.setColor(Color.LIGHT_GRAY);
+                        // اگر یال در previewEdges باشد، رنگش را تغییر بده
+                        if (previewEdges != null && previewEdges.contains(p)) {
+                            g2.setColor(
+                                    previewMode == PreviewMode.REGION
+                                            ? Color.RED
+                                            : Color.BLUE
+                            );
+                        }
+                        // رسم خط با پیکان ساده
+                        g2.setStroke(new BasicStroke(2));
+                        g2.drawLine(a.x, a.y, b.x, b.y);
+                    }
+                    // رسم نودها
+                    g2.setColor(Color.BLACK);
+                    for (Map.Entry<String, Point> e : universityPositions.entrySet()) {
+                        Point pt = e.getValue();
+                        g2.fillOval(pt.x-5, pt.y-5, 10, 10);
+                        g2.drawString(e.getKey(), pt.x+8, pt.y-8);
+                    }
+                }
+            };
+            previewPanel.setPreferredSize(new Dimension(getWidth(), getHeight()-50));
+            partitionDialog.add(new JScrollPane(previewPanel), BorderLayout.CENTER);
+
+            // ۳) اکشن دو دکمه
+            regionBtn.addActionListener(e -> {
+                String sel = (String) regionCombo.getSelectedItem();
+                if (sel == null) {
+                    JOptionPane.showMessageDialog(
+                            partitionDialog,
+                            "لطفاً ابتدا یک منطقه انتخاب کنید.",
+                            "خطا",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
+                // محاسبه MST برای منطقه
+                Map<String,List<Universities>> regs =
+                        GraphPartitioner.partitionNodesByRegion(universities);
+                Map<String,List<UniPaths>> edgeParts =
+                        GraphPartitioner.partitionEdgesByRegion(regs, paths);
+                Set<String> nodes = regs.get(sel).stream()
+                        .map(Universities::getUniversityName)
+                        .collect(Collectors.toSet());
+                List<UniPaths> regionEdges = edgeParts.get("intra").stream()
+                        .filter(p -> nodes.contains(p.getStartLocation()))
+                        .collect(Collectors.toList());
+                previewEdges = MSTCalculator.computeMST(regs.get(sel), regionEdges);
+                previewMode = PreviewMode.REGION;
+                previewPanel.repaint();
+            });
+            globalBtn.addActionListener(e -> {
+                // MST کل: ترکیب MST هر بخش + بین‌بخشی
+                Map<String,List<Universities>> regs =
+                        GraphPartitioner.partitionNodesByRegion(universities);
+                Map<String,List<UniPaths>> edgeParts =
+                        GraphPartitioner.partitionEdgesByRegion(regs, paths);
+                List<UniPaths> allMST = new ArrayList<>();
+                for (String r : regs.keySet()) {
+                    Set<String> nodes = regs.get(r).stream()
+                            .map(Universities::getUniversityName)
+                            .collect(Collectors.toSet());
+                    List<UniPaths> regionEdges = edgeParts.get("intra").stream()
+                            .filter(p -> nodes.contains(p.getStartLocation()))
+                            .collect(Collectors.toList());
+                    allMST.addAll(
+                            MSTCalculator.computeMST(regs.get(r), regionEdges)
+                    );
+                }
+                // اضافه کردن یال‌های بین‌بخشی
+                allMST.addAll(edgeParts.get("inter"));
+                previewEdges = allMST;
+                previewMode = PreviewMode.GLOBAL;
+                previewPanel.repaint();
+            });
+
+            partitionDialog.pack();
+            partitionDialog.setLocationRelativeTo(this);
+        }
+        // نمایش دیالوگ
+        partitionDialog.setVisible(true);
     }
 
 }
