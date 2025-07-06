@@ -221,6 +221,19 @@ public class main {
         JComboBox<String> regionField = new JComboBox<>(regions);
         JComboBox<Universities> fromBox = new JComboBox<>();
         JComboBox<Universities> toBox   = new JComboBox<>();
+        
+        // متد کمکی برای به‌روزرسانی ComboBox ها
+        Runnable updateComboBoxes = () -> {
+            fromBox.removeAllItems();
+            toBox.removeAllItems();
+            for (Universities uni : universities) {
+                fromBox.addItem(uni);
+                toBox.addItem(uni);
+            }
+        };
+        
+        // اضافه کردن دانشگاه‌های موجود به ComboBox ها
+        updateComboBoxes.run();
         JTextField costField         = new JTextField(10);
         JTextField startTimeField    = new JTextField(10);
         JTextField endTimeField      = new JTextField(10);
@@ -298,10 +311,10 @@ public class main {
             );
             universities.add(u);
             universityPositions.put(name, new Point(u.getX(), u.getY()));
-            fromBox.addItem(u);
-            toBox.addItem(u);
-
             GraphUtils.updateGraphAfterAddingUniversity(u, universities, paths);
+            
+            // به‌روزرسانی ComboBox ها
+            updateComboBoxes.run();
 
             if (universities.size() > 1) {
                 JOptionPane.showMessageDialog(panel,
@@ -359,17 +372,25 @@ public class main {
                         false, capacity, null
                 );
 
-                // چک تکراری بودن مسیر در همان جهت
-                boolean existsPath = paths.stream().anyMatch(p ->
+                // چک تکراری بودن مسیر در همان جهت (فقط برای یال‌های غیر رندوم)
+                boolean existsNonRandomPath = paths.stream().anyMatch(p ->
                         p.getStartLocation().equals(newPath.getStartLocation()) &&
-                                p.getEndLocation().equals(newPath.getEndLocation())
+                                p.getEndLocation().equals(newPath.getEndLocation()) &&
+                                !p.isRandom()
                 );
 
-                if (existsPath && !(newPath.isRandom())) {
+                if (existsNonRandomPath) {
                     JOptionPane.showMessageDialog(panel,
-                            "بین این دو دانشگاه یک مسیر قبلی وجود دارد.",
+                            "بین این دو دانشگاه یک مسیر غیر رندوم قبلی وجود دارد.",
                             "خطا", JOptionPane.WARNING_MESSAGE);
                 } else {
+                    // حذف یال رندوم موجود در همان جهت (اگر وجود داشته باشد)
+                    paths.removeIf(p ->
+                            p.getStartLocation().equals(newPath.getStartLocation()) &&
+                                    p.getEndLocation().equals(newPath.getEndLocation()) &&
+                                    p.isRandom()
+                    );
+                    
                     // اضافه کردن مسیر دستی
                     paths.add(newPath);
                 }

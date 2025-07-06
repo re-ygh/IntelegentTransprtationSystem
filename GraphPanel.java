@@ -92,6 +92,20 @@ public class GraphPanel extends JPanel {
         JButton PartitionedMSTbtn = new JButton("نمایش Partitioned MST");
         PartitionedMSTbtn.addActionListener(e -> computeAndShowPartitionedMST());
 
+        JButton normalGraphButton = new JButton("نمایش گراف عادی");
+        normalGraphButton.addActionListener(e -> {
+            // پاک کردن همه highlight ها و MST
+            for (UniPaths p : paths) p.setHighlighted(false);
+            this.mstEdges = null;
+            // پاک کردن usage count برای برگشت به رنگ‌های عادی
+            usageCount.clear();
+            repaint();
+            // به‌روزرسانی heatmap اگر باز باشد
+            if (heatmapDialog != null && heatmapDialog.isVisible() && heatPanel != null) {
+                heatPanel.repaint();
+            }
+        });
+
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         topPanel.setBackground(new Color(117, 166, 121));
         topPanel.add(reachButton);
@@ -100,6 +114,7 @@ public class GraphPanel extends JPanel {
         topPanel.add(reservationButton);
         topPanel.add(heatmapButton);
         topPanel.add(PartitionedMSTbtn);
+        topPanel.add(normalGraphButton);
         setLayout(new BorderLayout());
         add(topPanel, BorderLayout.NORTH);
     }
@@ -136,6 +151,7 @@ public class GraphPanel extends JPanel {
 
                     // count duplicate edges
                     Map<String, Integer> pairCount = new HashMap<>();
+                    Map<String, Integer> edgeIndex = new HashMap<>();
                     for (UniPaths p : paths) {
                         String a = p.getStartLocation(), b = p.getEndLocation();
                         String key = a.compareTo(b) < 0 ? a+"|"+b : b+"|"+a;
@@ -151,31 +167,32 @@ public class GraphPanel extends JPanel {
                         // constant stroke
                         g2.setStroke(new BasicStroke(2));
                         if (usage > 0) {
-                            // فرض می‌کنیم در UniPaths متدی دارید به نام getCapacity()
-                            int capacity = p.getCapacity();
+                            // استفاده از ظرفیت باقی‌مانده برای محاسبه نسبت
+                            int totalCapacity = p.getCapacity();
+                            int remainingCapacity = p.getRemainingCapacity();
+                            int usedCapacity = totalCapacity - remainingCapacity;
+                            
                             // جلوگیری از تقسیم بر صفر
-                            float ratio = capacity > 0
-                                    ? Math.min(1f, (float) usage / capacity)
+                            float ratio = totalCapacity > 0
+                                    ? Math.min(1f, (float) usedCapacity / totalCapacity)
                                     : 0f;
+                            
                             // colour gradient: white → light-red → dark-red → brown
                             Color heatColor;
-                            if (ratio < 0.5f) {
-                                // white → red
-                                float t = ratio / 0.5f;
-                                heatColor = new Color(
-                                        1f,
-                                        1f - t,
-                                        1f - t
-                                );
+                            if (ratio < 0.25f) {
+                                // اگر رنگ به سفید رسید، رنگ اولیه یال را برگردان
+                                if (p.isHighlighted())      heatColor = Color.RED;
+                                else if (mstEdges != null && mstEdges.contains(p)) heatColor = Color.BLUE;
+                                else if (p.isRandom())      heatColor = Color.LIGHT_GRAY;
+                                else                        heatColor = Color.BLACK;
+                            } else if (ratio < 0.5f) {
+                                heatColor = new Color(255, 200, 200); // light red
+                            } else if (ratio < 0.75f) {
+                                heatColor = new Color(255, 100, 100); // medium red
+                            } else if (ratio < 0.9f) {
+                                heatColor = new Color(255, 50, 50);   // dark red
                             } else {
-                                // red → brown
-                                float t = (ratio - 0.5f) / 0.5f;
-                                // interpolates red (1,0,0) → brown (0.6,0.2,0)
-                                heatColor = new Color(
-                                        1f - 0.4f*t,
-                                        0f + 0.2f*t,
-                                        0f
-                                );
+                                heatColor = new Color(139, 0, 0);     // dark red (brown-like)
                             }
                             g2.setColor(heatColor);
                         } else {
@@ -188,23 +205,20 @@ public class GraphPanel extends JPanel {
                         }
 
                         String u = p.getStartLocation(), v = p.getEndLocation();
-                        String key = u.compareTo(v) < 0 ? u+"|"+v : v+"|"+u;
-                        if (pairCount.getOrDefault(key,0) > 1 && u.compareTo(v) > 0) {
-                            // curved duplicate edge
-                            double x1=a.x, y1=a.y, x2=b.x, y2=b.y;
-                            double mx=(x1+x2)/2, my=(y1+y2)/2;
-                            double dx=x2-x1, dy=y2-y1;
-                            double len=Math.hypot(dx,dy); if(len==0) len=1;
-                            double nx=-dy/len, ny=dx/len;
-                            double offset=40;
-                            QuadCurve2D curve = new QuadCurve2D.Double(
-                                    x2,y2, mx+nx*offset, my+ny*offset, x1,y1
-                            );
+                        String key = u + "|" + v;
+                        // شمارش یال‌های مشابه برای تصمیم‌گیری منحنی
+                        int currentIndex = edgeIndex.getOrDefault(key, 0);
+                        edgeIndex.put(key, currentIndex + 1);
+                        
+                        if (pairCount.getOrDefault(key,0) > 1 && currentIndex > 0) {
+                            // استفاده از تابع createCurve برای منحنی
+                            QuadCurve2D.Double curve = createCurve(a, b);
                             g2.draw(curve);
                             drawArrowOnCurve(g2, curve);
                         } else {
                             // straight directed edge
-                            drawArrow(g2, b.x, b.y, a.x, a.y);                        }
+                            drawArrow(g2, a.x, a.y, b.x, b.y);
+                        }
                     }
 
                     // draw nodes
@@ -366,9 +380,11 @@ public class GraphPanel extends JPanel {
 
         // رسم یال‌ها با توجه به heatmap
         Map<String, Integer> pairCount = new HashMap<>();
+        Map<String, Integer> edgeIndex = new HashMap<>();
         for (UniPaths p : paths) {
             String u = p.getStartLocation(), v = p.getEndLocation();
-            String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
+            // کلید بر اساس جهت واقعی یال
+            String key = u + "|" + v;
             pairCount.put(key, pairCount.getOrDefault(key, 0) + 1);
         }
         for (UniPaths p : paths) {
@@ -382,30 +398,27 @@ public class GraphPanel extends JPanel {
                 else g2.setColor(Color.BLACK);
 
             String u = p.getStartLocation(), v = p.getEndLocation();
-            String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
+            String key = u + "|" + v;
+            // شمارش یال‌های مشابه برای تصمیم‌گیری منحنی
+            int currentIndex = edgeIndex.getOrDefault(key, 0);
+            edgeIndex.put(key, currentIndex + 1);
+            
             // رسم منحنی یا خط مستقیم
-            if (pairCount.getOrDefault(key, 0) > 1 && u.compareTo(v) > 0) {
-                double x1 = a.x, y1 = a.y, x2 = b.x, y2 = b.y;
-                double mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-                double dx = x2 - x1, dy = y2 - y1;
-                double len = Math.hypot(dx, dy);
-                if (len == 0) len = 1;
-                double nx = -dy / len, ny = dx / len;
-                double offset = 40;
-                double cx = mx + nx * offset, cy = my + ny * offset;
-                QuadCurve2D curve = new QuadCurve2D.Double(x2, y2, cx, cy, x1, y1);
+            if (pairCount.getOrDefault(key, 0) > 1 && currentIndex > 0) {
+                // استفاده از تابع createCurve برای منحنی
+                QuadCurve2D.Double curve = createCurve(a, b);
                 g2.draw(curve);
                 drawArrowOnCurve(g2, curve);
-                g2.setColor(Color.BLACK);
-                g2.drawString(String.valueOf(p.getCost()), (int) cx, (int) cy);
                 // نمایش هزینه روی منحنی
+                Point mid = controlPoint(a, b);
                 g2.setColor(Color.BLACK);
-                g2.drawString(String.valueOf(p.getCost()), (int) cx, (int) cy);
+                g2.drawString(String.valueOf(p.getCost()), mid.x, mid.y);
             } else {
-                drawArrow(g2, b.x, b.y, a.x, a.y);
+                drawArrow(g2, a.x, a.y, b.x, b.y);
                 g2.setColor(Color.BLACK);
                 g2.drawString(String.valueOf(p.getCost()),
-                        (a.x + b.x)/2, (a.y + b.y)/2);            }
+                        (a.x + b.x)/2, (a.y + b.y)/2);
+            }
         }
         if (dragStartNode != null && dragCurrentPoint != null) {
             Point a = universityPositions.get(dragStartNode);
@@ -805,6 +818,10 @@ public class GraphPanel extends JPanel {
                     animations.remove(this);     // حذف انیمیشن
                 }
                 repaint();
+                // به‌روزرسانی heatmap اگر باز باشد
+                if (heatmapDialog != null && heatmapDialog.isVisible() && heatPanel != null) {
+                    heatPanel.repaint();
+                }
             });
         }
         void start() { timer.start(); }
@@ -909,10 +926,9 @@ public class GraphPanel extends JPanel {
                             RenderingHints.VALUE_ANTIALIAS_ON);
                     // شمارش یال‌های موازی
                     Map<String, Integer> dup = new HashMap<>();
+                    Map<String, Integer> edgeIndex = new HashMap<>();
                     for (UniPaths p : paths) {
-                        String key = p.getStartLocation().compareTo(p.getEndLocation()) < 0
-                                ? p.getStartLocation() + "|" + p.getEndLocation()
-                                : p.getEndLocation() + "|" + p.getStartLocation();
+                        String key = p.getStartLocation() + "|" + p.getEndLocation();
                         dup.put(key, dup.getOrDefault(key, 0) + 1);
                     }
 
@@ -959,8 +975,12 @@ public class GraphPanel extends JPanel {
                         }
                         
                         // رسم یال (مستقیم یا منحنی)
-                        String key = a.toString() + "-" + b.toString();
-                        if (dup.getOrDefault(key, 0) > 1) {
+                        String key = p.getStartLocation() + "|" + p.getEndLocation();
+                        // شمارش یال‌های مشابه برای تصمیم‌گیری منحنی
+                        int currentIndex = edgeIndex.getOrDefault(key, 0);
+                        edgeIndex.put(key, currentIndex + 1);
+                        
+                        if (dup.getOrDefault(key, 0) > 1 && currentIndex > 0) {
                             QuadCurve2D.Double curve = createCurve(a, b);
                             g2.draw(curve);
                             drawArrowOnCurve(g2, curve);
@@ -968,7 +988,7 @@ public class GraphPanel extends JPanel {
                             Point mid = controlPoint(a, b);
                             g2.drawString(p.getCost() + "(" + p.getRemainingCapacity() + ")", mid.x, mid.y);
                         } else {
-                            drawArrow(g2, b.x, b.y, a.x, a.y);
+                            drawArrow(g2, a.x, a.y, b.x, b.y);
                             // نوشتن هزینه و ظرفیت
                             int mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
                             g2.drawString(p.getCost() + "(" + p.getRemainingCapacity() + ")", mx, my);
@@ -1057,7 +1077,7 @@ public class GraphPanel extends JPanel {
         double len = Math.hypot(dx, dy);
         if (len == 0) len = 1;
         double nx = -dy / len, ny = dx / len;
-        double offset = 40;  // میزان انحنای منحنی
+        double offset = 60;  // میزان انحنای منحنی (افزایش یافته برای وضوح بیشتر)
         return new QuadCurve2D.Double(
                 x1, y1,
                 mx + nx*offset, my + ny*offset,
