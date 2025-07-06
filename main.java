@@ -141,6 +141,8 @@ public class main {
         frame.setSize(1100, 700);
         frame.setLocationRelativeTo(null);
 
+        TSPPage tspPage = new TSPPage(graphPanel, universities, paths);
+
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
 
@@ -148,6 +150,7 @@ public class main {
         mainPanel.add(createBuildGraphPage(), "page1");
         mainPanel.add(createPage("صفحه نمایش گراف و زیرساخت"), "page2");
         mainPanel.add(createPage("صفحه سفر چندمقصدی (TSP)"), "page5");
+        mainPanel.add(tspPage, "page5");
 
         JScrollPane scrollPane = new JScrollPane(mainPanel,
                 JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,

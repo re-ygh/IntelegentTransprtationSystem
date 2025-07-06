@@ -16,6 +16,8 @@ public class UniPaths implements Serializable {
  private int remainingCapacity;
  private boolean highlighted = false;  // هایلایت (قرمز) برای مسیر نهایی
 private List<String> reservations = new ArrayList<>();
+ public static List<UniPaths> DijkstraPaths = new ArrayList<>();
+
  public UniPaths(int startTime, int endTime, int cost, int capacity,
                  String startLocation, String endLocation, boolean isRandom, int remainingCapacity,List<String> reservations) {
   this.startTime = startTime;
@@ -85,6 +87,9 @@ private List<String> reservations = new ArrayList<>();
   * @return true اگر مسیر یافت شود، false در غیر این صورت
   */
  public static Boolean DijkstraShortestPath(List<UniPaths> allPaths, String src, String dest, boolean reduceCapacity) {
+
+  DijkstraPaths.clear();
+
   // ۱. پاکسازی هایلایت‌های قبلی
   for (UniPaths p : allPaths) {
    p.setHighlighted(false);
@@ -168,6 +173,7 @@ private List<String> reservations = new ArrayList<>();
     if (reduceCapacity) {
      edge.setRemainingCapacity(edge.getRemainingCapacity() - 1);
     }
+    DijkstraPaths.add(edge);
    }
 
    break;
