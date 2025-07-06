@@ -878,42 +878,54 @@ public class GraphPanel extends JPanel {
     }
 
     private void computeAndShowPartitionedMST() {
-        // یک‌بار دیالوگ را می‌سازیم
         if (partitionDialog == null) {
             partitionDialog = new JDialog(
                     (Frame) SwingUtilities.getWindowAncestor(this),
-                    "نمایش MST مقیاس‌پذیر",
-                    false
+                    "نمایش MST مقیاس‌پذیر", false
             );
             partitionDialog.setLayout(new BorderLayout());
 
-            // ۱) پنل بالایی: انتخاب منطقه و دو دکمه
-            JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-            String[] regions = GraphPartitioner
-                    .partitionNodesByRegion(universities)
+            // 1) پنل بالایی
+            JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+            String[] regs = GraphPartitioner.partitionNodesByRegion(universities)
                     .keySet().toArray(new String[0]);
-            JComboBox<String> regionCombo = new JComboBox<>(regions);
-            regionCombo.setSelectedIndex(-1);
+            JComboBox<String> combo = new JComboBox<>(regs);
+            combo.setSelectedIndex(-1);
+            JButton btnRegion = new JButton("نمایش MST منطقه‌ای");
+            JButton btnGlobal = new JButton("نمایش MST کل");
+            top.add(new JLabel("انتخاب منطقه:"));
+            top.add(combo);
+            top.add(btnRegion);
+            top.add(btnGlobal);
+            partitionDialog.add(top, BorderLayout.NORTH);
 
-            JButton regionBtn = new JButton("نمایش MST منطقه‌ای");
-            JButton globalBtn = new JButton("نمایش MST کل");
-
-            topPanel.add(new JLabel("انتخاب منطقه:"));
-            topPanel.add(regionCombo);
-            topPanel.add(regionBtn);
-            topPanel.add(globalBtn);
-            partitionDialog.add(topPanel, BorderLayout.NORTH);
-
-            // ۲) پنل پیش‌نمایش گراف
+            // 2) پنل پیش‌نمایش گراف
             previewPanel = new JPanel() {
-                @Override protected void paintComponent(Graphics g) {
+
+                @Override
+                protected void paintComponent(Graphics g) {
                     super.paintComponent(g);
                     Graphics2D g2 = (Graphics2D) g;
-                    g2.setRenderingHint(
-                            RenderingHints.KEY_ANTIALIASING,
-                            RenderingHints.VALUE_ANTIALIAS_ON
-                    );
-                    // رسم یال‌ها
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                            RenderingHints.VALUE_ANTIALIAS_ON);
+                    // شمارش یال‌های موازی
+                    Map<String, Integer> dup = new HashMap<>();
+                    for (UniPaths p : paths) {
+                        String key = p.getStartLocation().compareTo(p.getEndLocation()) < 0
+                                ? p.getStartLocation() + "|" + p.getEndLocation()
+                                : p.getEndLocation() + "|" + p.getStartLocation();
+                        dup.put(key, dup.getOrDefault(key, 0) + 1);
+                    }
+
+                    // نگاشت نام دانشگاه → نام منطقه
+                    Map<String,String> nodeRegion = GraphPartitioner
+                            .partitionNodesByRegion(universities)
+                            .entrySet().stream()
+                            .flatMap(e -> e.getValue().stream()
+                                    .map(u -> Map.entry(u.getUniversityName(), e.getKey())))
+                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+                    // رسم همه یال‌ها
                     for (UniPaths p : paths) {
                         Point a = universityPositions.get(p.getStartLocation());
                         Point b = universityPositions.get(p.getEndLocation());
@@ -922,85 +934,141 @@ public class GraphPanel extends JPanel {
                         g2.setColor(Color.LIGHT_GRAY);
                         // اگر یال در previewEdges باشد، رنگش را تغییر بده
                         if (previewEdges != null && previewEdges.contains(p)) {
-                            g2.setColor(
-                                    previewMode == PreviewMode.REGION
-                                            ? Color.RED
-                                            : Color.BLUE
-                            );
+
+                            if (previewMode == PreviewMode.REGION) g2.setColor(Color.RED);
+                            else { // GLOBAL
+                                // درون حلقه‌ی یال‌ها:
+                                String region = nodeRegion.get(p.getStartLocation());
+                                // تخصیص رنگ بر اساس منطقه
+                                 Color c = switch(region) {
+                                    case "شمال"  -> Color.CYAN;
+                                    case "جنوب"  -> Color.MAGENTA;
+                                    case "شرق"   -> Color.ORANGE;
+                                    case "غرب"   -> Color.PINK;
+                                    case "مرکز"  -> Color.YELLOW;
+                                    default       -> Color.LIGHT_GRAY;
+                                };
+                                g2.setColor(c);
+                                g2.setStroke(new BasicStroke(2));
+                                // رسم منحنی اگر یال موازی است
+                                String key = a.toString() + "-" + b.toString();
+                                if (dup.getOrDefault(key, 0) > 1) {
+                                    QuadCurve2D.Double curve = createCurve(a, b);
+                                    g2.draw(curve);
+                                    drawArrowOnCurve(g2, curve);
+                                    // نوشتن هزینه و ظرفیت
+                                    Point mid = controlPoint(a, b);
+                                    g2.drawString(p.getCost() + "(" + p.getRemainingCapacity() + ")", mid.x, mid.y);
+                                } else {
+                                    drawArrow(g2, b.x, b.y, a.x, a.y);
+                                    // نوشتن هزینه و ظرفیت
+                                    int mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+                                    g2.drawString(p.getCost() + "(" + p.getRemainingCapacity() + ")", mx, my);
+                                }
+                            }
+                            // رسم نودها
+                            for (Universities u : universities) {
+                                Point pt = universityPositions.get(u.getUniversityName());
+                                Color nodeColor = switch (u.getUniversityLocation()) {
+                                    case "شمال" -> Color.CYAN;
+                                    case "جنوب" -> Color.MAGENTA;
+                                    case "شرق" -> Color.ORANGE;
+                                    case "غرب" -> Color.PINK;
+                                    case "مرکز" -> Color.YELLOW;
+                                    default -> Color.GRAY;
+                                };
+                                g2.setColor(nodeColor);
+                                g2.fillOval(pt.x - 8, pt.y - 8, 16, 16);
+                                g2.setColor(Color.BLACK);
+                                g2.drawString(u.getUniversityName(), pt.x + 10, pt.y);
+                            }
                         }
-                        // رسم خط با پیکان ساده
-                        g2.setStroke(new BasicStroke(2));
-                        g2.drawLine(a.x, a.y, b.x, b.y);
-                    }
-                    // رسم نودها
-                    g2.setColor(Color.BLACK);
-                    for (Map.Entry<String, Point> e : universityPositions.entrySet()) {
-                        Point pt = e.getValue();
-                        g2.fillOval(pt.x-5, pt.y-5, 10, 10);
-                        g2.drawString(e.getKey(), pt.x+8, pt.y-8);
-                    }
+                    };
                 }
             };
-            previewPanel.setPreferredSize(new Dimension(getWidth(), getHeight()-50));
-            partitionDialog.add(new JScrollPane(previewPanel), BorderLayout.CENTER);
 
-            // ۳) اکشن دو دکمه
-            regionBtn.addActionListener(e -> {
-                String sel = (String) regionCombo.getSelectedItem();
+            // 3) تعریف اکشن دکمه‌ها
+            btnRegion.addActionListener(e -> {
+                String sel = (String) combo.getSelectedItem();
                 if (sel == null) {
-                    JOptionPane.showMessageDialog(
-                            partitionDialog,
-                            "لطفاً ابتدا یک منطقه انتخاب کنید.",
-                            "خطا",
-                            JOptionPane.ERROR_MESSAGE
-                    );
+                    JOptionPane.showMessageDialog(partitionDialog,
+                            "لطفاً یک منطقه انتخاب کنید.", "خطا", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-                // محاسبه MST برای منطقه
-                Map<String,List<Universities>> regs =
-                        GraphPartitioner.partitionNodesByRegion(universities);
-                Map<String,List<UniPaths>> edgeParts =
-                        GraphPartitioner.partitionEdgesByRegion(regs, paths);
-                Set<String> nodes = regs.get(sel).stream()
-                        .map(Universities::getUniversityName)
-                        .collect(Collectors.toSet());
-                List<UniPaths> regionEdges = edgeParts.get("intra").stream()
-                        .filter(p -> nodes.contains(p.getStartLocation()))
-                        .collect(Collectors.toList());
-                previewEdges = MSTCalculator.computeMST(regs.get(sel), regionEdges);
+                var regs2 = GraphPartitioner.partitionNodesByRegion(universities);
+                var parts = GraphPartitioner.partitionEdgesByRegion(regs2, paths);
+                Set<String> names = regs2.get(sel).stream()
+                        .map(Universities::getUniversityName).collect(Collectors.toSet());
+                previewEdges = parts.get("intra").stream()
+                        .filter(p -> names.contains(p.getStartLocation())).toList();
                 previewMode = PreviewMode.REGION;
                 previewPanel.repaint();
             });
-            globalBtn.addActionListener(e -> {
-                // MST کل: ترکیب MST هر بخش + بین‌بخشی
-                Map<String,List<Universities>> regs =
-                        GraphPartitioner.partitionNodesByRegion(universities);
-                Map<String,List<UniPaths>> edgeParts =
-                        GraphPartitioner.partitionEdgesByRegion(regs, paths);
-                List<UniPaths> allMST = new ArrayList<>();
-                for (String r : regs.keySet()) {
-                    Set<String> nodes = regs.get(r).stream()
-                            .map(Universities::getUniversityName)
-                            .collect(Collectors.toSet());
-                    List<UniPaths> regionEdges = edgeParts.get("intra").stream()
-                            .filter(p -> nodes.contains(p.getStartLocation()))
-                            .collect(Collectors.toList());
-                    allMST.addAll(
-                            MSTCalculator.computeMST(regs.get(r), regionEdges)
-                    );
+
+            btnGlobal.addActionListener(e -> {
+                var regs3 = GraphPartitioner.partitionNodesByRegion(universities);
+                var parts = GraphPartitioner.partitionEdgesByRegion(regs3, paths);
+                List<UniPaths> allMst = new ArrayList<>();
+                for (String r : regs3.keySet()) {
+                    Set<String> names = regs3.get(r).stream()
+                            .map(Universities::getUniversityName).collect(Collectors.toSet());
+                    var regionEdges = parts.get("intra").stream()
+                            .filter(p -> names.contains(p.getStartLocation())).toList();
+                    allMst.addAll(MSTCalculator.computeMST(regs3.get(r), regionEdges));
                 }
-                // اضافه کردن یال‌های بین‌بخشی
-                allMST.addAll(edgeParts.get("inter"));
-                previewEdges = allMST;
+                // فقط یال‌های بین‌بخشیِ MST خوشه‌ای را اضافه کن:
+//                allMst.addAll(
+//                        GraphPartitioner.computeInterRegionMST(regs, parts.get("inter"))
+//                );
+                previewEdges = allMst;
                 previewMode = PreviewMode.GLOBAL;
                 previewPanel.repaint();
             });
 
+            /////////
+
+            previewPanel.setPreferredSize(new Dimension(getWidth(), getHeight() - 80));
+            partitionDialog.add(new JScrollPane(previewPanel), BorderLayout.CENTER);
+
             partitionDialog.pack();
             partitionDialog.setLocationRelativeTo(this);
         }
-        // نمایش دیالوگ
         partitionDialog.setVisible(true);
     }
+
+    /**
+     * ایجاد یک منحنی QuadCurve2D بین دو نقطه (برای رسم یال‌های موازی)
+     */
+    private QuadCurve2D.Double createCurve(Point a, Point b) {
+        double x1 = a.x, y1 = a.y, x2 = b.x, y2 = b.y;
+        double mx = (x1 + x2) / 2.0, my = (y1 + y2) / 2.0;
+        double dx = x2 - x1, dy = y2 - y1;
+        double len = Math.hypot(dx, dy);
+        if (len == 0) len = 1;
+        double nx = -dy / len, ny = dx / len;
+        double offset = 40;  // میزان انحنای منحنی
+        return new QuadCurve2D.Double(
+                x1, y1,
+                mx + nx*offset, my + ny*offset,
+                x2, y2
+        );
+    }
+
+    /**
+     * محاسبه نقطه میانی منحنی برای رسم برچسب هزینه
+     */
+    private Point controlPoint(Point a, Point b) {
+        QuadCurve2D.Double curve = createCurve(a, b);
+        // t=0.5 برای وسط منحنی
+        double t = 0.5;
+        double x = Math.pow(1 - t, 2) * curve.getX1()
+                + 2 * (1 - t) * t * curve.getCtrlX()
+                + t * t * curve.getX2();
+        double y = Math.pow(1 - t, 2) * curve.getY1()
+                + 2 * (1 - t) * t * curve.getCtrlY()
+                + t * t * curve.getY2();
+        return new Point((int)x, (int)y);
+    }
+
 
 }
