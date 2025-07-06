@@ -17,6 +17,8 @@ public class TSPPage extends JPanel {
     private JButton visualizeButton;
 
     private JButton backButton; // دکمه جدید برای بازگشت
+    private JDialog graphDialog; // دیالوگ جدید برای نمایش گراف
+    private JTextArea logArea; // ناحیه متن برای لاگ در پنل اصلی
 
 
     public TSPPage(GraphPanel graphPanel, List<Universities> universities, List<UniPaths> paths) {
@@ -65,13 +67,19 @@ public class TSPPage extends JPanel {
         universityList.setCellRenderer(new UniversityListRenderer());
 
         // پر کردن لیست با دانشگاه‌های موجود
-        DefaultListModel<Universities> model = (DefaultListModel<Universities>) universityList.getModel();
-        universities.forEach(model::addElement);
+        updateUniversityList();
 
         JScrollPane scrollPane = new JScrollPane(universityList);
         panel.add(scrollPane, BorderLayout.CENTER);
 
         return panel;
+    }
+
+    // متد جدید برای آپدیت لیست دانشگاه‌ها
+    public void updateUniversityList() {
+        DefaultListModel<Universities> model = (DefaultListModel<Universities>) universityList.getModel();
+        model.clear(); // پاک کردن لیست قبلی
+        universities.forEach(model::addElement); // اضافه کردن دانشگاه‌های جدید
     }
 
     private JPanel createResultPanel() {
@@ -94,7 +102,7 @@ public class TSPPage extends JPanel {
         calculateButton = new JButton("محاسبه بهترین مسیر");
         calculateButton.addActionListener(e -> calculateTSP());
 
-        visualizeButton = new JButton("نمایش روی گراف");
+        visualizeButton = new JButton("نمایش TSP");
         visualizeButton.setEnabled(false);
         visualizeButton.addActionListener(e -> visualizePath());
 
@@ -182,7 +190,7 @@ public class TSPPage extends JPanel {
     }
 
     private void visualizePath() {
-        System.out.println("دکمه نمایش گراف کلیک شد");
+        System.out.println("دکمه نمایش TSP کلیک شد");
         System.out.println("lastOptimalOrder: " + lastOptimalOrder);
 
         if (lastOptimalOrder == null || lastOptimalOrder.isEmpty()) {
@@ -196,7 +204,11 @@ public class TSPPage extends JPanel {
         List<Universities> selected = universityList.getSelectedValuesList();
         System.out.println("دانشگاه‌های انتخاب شده: " + selected.size());
 
-        highlightPathOnGraph(selected, lastOptimalOrder);
+        // نمایش لاگ در پنل اصلی
+        showLogInMainPanel(selected, lastOptimalOrder);
+        
+        // نمایش گراف در پنل جدید
+        showGraphInNewPanel(selected, lastOptimalOrder);
     }
 
     private List<Integer> extractOptimalOrder(String resultText) {
@@ -227,32 +239,189 @@ public class TSPPage extends JPanel {
         return optimalOrder;
     }
 
+    private void showLogInMainPanel(List<Universities> selected, List<Integer> order) {
+        // تولید لاگ
+        StringBuilder log = new StringBuilder();
+        log.append("=== لاگ مسیر TSP ===\n\n");
+        log.append("دانشگاه‌های انتخاب شده: ").append(selected.size()).append("\n");
+        log.append("ترتیب بهینه: ");
+        for (int i = 0; i < order.size(); i++) {
+            log.append(selected.get(order.get(i)).getUniversityName());
+            if (i < order.size() - 1) log.append(" → ");
+        }
+        log.append("\n\n");
+        
+        // جزئیات هر بخش مسیر
+        for (int i = 0; i < order.size() - 1; i++) {
+            Universities fromUni = selected.get(order.get(i));
+            Universities toUni = selected.get(order.get(i + 1));
+            
+            log.append("بخش ").append(i + 1).append(": ").append(fromUni.getUniversityName())
+               .append(" → ").append(toUni.getUniversityName()).append("\n");
+            
+            // محاسبه مسیر بین این دو دانشگاه
+            UniPaths.DijkstraShortestPath(paths, fromUni.getUniversityName(), toUni.getUniversityName(), false);
+            List<UniPaths> segment = UniPaths.DijkstraPaths;
+            
+            if (!segment.isEmpty()) {
+                log.append("  مسیر: ");
+                for (int j = 0; j < segment.size(); j++) {
+                    UniPaths path = segment.get(j);
+                    log.append(path.getStartLocation()).append(" → ").append(path.getEndLocation());
+                    if (j < segment.size() - 1) log.append(" → ");
+                }
+                log.append("\n");
+                log.append("  هزینه: ").append(segment.stream().mapToInt(UniPaths::getCost).sum()).append("\n");
+                log.append("  زمان: ").append(segment.stream().mapToInt(p -> p.getEndTime() - p.getStartTime()).sum()).append("\n");
+            } else {
+                log.append("  خطا: مسیر مستقیم یافت نشد\n");
+            }
+            log.append("\n");
+        }
+        
+        // مسیر بازگشت
+        Universities lastUni = selected.get(order.get(order.size() - 1));
+        Universities firstUni = selected.get(order.get(0));
+        log.append("مسیر بازگشت: ").append(lastUni.getUniversityName())
+           .append(" → ").append(firstUni.getUniversityName()).append("\n");
+        
+        UniPaths.DijkstraShortestPath(paths, lastUni.getUniversityName(), firstUni.getUniversityName(), false);
+        List<UniPaths> returnSegment = UniPaths.DijkstraPaths;
+        
+        if (!returnSegment.isEmpty()) {
+            log.append("  مسیر: ");
+            for (int j = 0; j < returnSegment.size(); j++) {
+                UniPaths path = returnSegment.get(j);
+                log.append(path.getStartLocation()).append(" → ").append(path.getEndLocation());
+                if (j < returnSegment.size() - 1) log.append(" → ");
+            }
+            log.append("\n");
+            log.append("  هزینه: ").append(returnSegment.stream().mapToInt(UniPaths::getCost).sum()).append("\n");
+            log.append("  زمان: ").append(returnSegment.stream().mapToInt(p -> p.getEndTime() - p.getStartTime()).sum()).append("\n");
+        }
+        
+        // نمایش لاگ در ناحیه نتایج اصلی
+        resultArea.setText(log.toString());
+    }
+
+    private void showGraphInNewPanel(List<Universities> selected, List<Integer> order) {
+        // ایجاد پنل جدید برای نمایش گراف
+        if (graphDialog == null) {
+            graphDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "گراف TSP", false);
+            graphDialog.setSize(800, 600);
+            graphDialog.setLocationRelativeTo(this);
+            
+            // ایجاد یک کپی از GraphPanel برای نمایش در پنل جدید
+            GraphPanel newGraphPanel = new GraphPanel(paths, main.universityPositions, universities);
+            
+            graphDialog.add(newGraphPanel);
+        }
+        
+        // هایلایت مسیر روی گراف جدید (نه گراف اصلی)
+        highlightPathOnNewGraph(selected, order);
+        
+        graphDialog.setVisible(true);
+    }
+
+    private void highlightPathOnNewGraph(List<Universities> selected, List<Integer> order) {
+        // پاکسازی تمام هایلایت‌های قبلی
+        for (UniPaths path : paths) {
+            path.setHighlighted(false);
+        }
+
+        System.out.println("تعداد کل مسیرها: " + paths.size());
+        System.out.println("مسیرهای موجود:");
+        for (UniPaths path : paths) {
+            System.out.println("  " + path.getStartLocation() + " -> " + path.getEndLocation());
+        }
+
+        // هایلایت مسیرهای TSP با رنگ قرمز
+        for (int i = 0; i < order.size() - 1; i++) {
+            Universities fromUni = selected.get(order.get(i));
+            Universities toUni = selected.get(order.get(i + 1));
+
+            System.out.println("جستجوی مسیر از " + fromUni.getUniversityName() + " به " + toUni.getUniversityName());
+
+            // محاسبه مسیر بین این دو دانشگاه
+            boolean pathFound = UniPaths.DijkstraShortestPath(paths, fromUni.getUniversityName(), toUni.getUniversityName(), false);
+            List<UniPaths> segment = UniPaths.DijkstraPaths;
+            
+            System.out.println("مسیر یافت شد: " + pathFound + ", تعداد یال‌ها: " + segment.size());
+            
+            // هایلایت تمام یال‌های مسیر
+            for (UniPaths path : segment) {
+                path.setHighlighted(true);
+                System.out.println("  هایلایت: " + path.getStartLocation() + " -> " + path.getEndLocation());
+            }
+        }
+
+        // مسیر بازگشت به نقطه شروع
+        Universities lastUni = selected.get(order.get(order.size() - 1));
+        Universities firstUni = selected.get(order.get(0));
+        
+        System.out.println("جستجوی مسیر بازگشت از " + lastUni.getUniversityName() + " به " + firstUni.getUniversityName());
+        
+        boolean returnPathFound = UniPaths.DijkstraShortestPath(paths, lastUni.getUniversityName(), firstUni.getUniversityName(), false);
+        List<UniPaths> returnSegment = UniPaths.DijkstraPaths;
+        
+        System.out.println("مسیر بازگشت یافت شد: " + returnPathFound + ", تعداد یال‌ها: " + returnSegment.size());
+        
+        for (UniPaths path : returnSegment) {
+            path.setHighlighted(true);
+            System.out.println("  هایلایت بازگشت: " + path.getStartLocation() + " -> " + path.getEndLocation());
+        }
+
+        // اعمال تغییرات روی گراف جدید
+        if (graphDialog != null && graphDialog.isVisible()) {
+            Component[] components = graphDialog.getContentPane().getComponents();
+            for (Component comp : components) {
+                if (comp instanceof GraphPanel) {
+                    comp.repaint();
+                    break;
+                }
+            }
+        }
+        
+        System.out.println("مسیرهای TSP هایلایت شده: " +
+                paths.stream().filter(UniPaths::isHighlighted).count());
+    }
+
     private void highlightPathOnGraph(List<Universities> selected, List<Integer> order) {
         // 1. پاکسازی تمام هایلایت‌های قبلی
         for (UniPaths path : paths) {
             path.setHighlighted(false);
         }
 
-        // 2. هایلایت مسیرهای بین دانشگاه‌های انتخاب شده
+        // 2. هایلایت مسیرهای TSP با رنگ قرمز
         for (int i = 0; i < order.size() - 1; i++) {
             Universities fromUni = selected.get(order.get(i));
             Universities toUni = selected.get(order.get(i + 1));
 
-            // هایلایت تمام مسیرهای بین این دو دانشگاه
-            for (UniPaths path : paths) {
-                if ((path.getStartLocation().equals(fromUni.getUniversityName()) &&
-                        path.getEndLocation().equals(toUni.getUniversityName())) ||
-                        (path.getStartLocation().equals(toUni.getUniversityName()) &&
-                                path.getEndLocation().equals(fromUni.getUniversityName()))) {
-                    path.setHighlighted(true);
-                }
+            // محاسبه مسیر بین این دو دانشگاه
+            UniPaths.DijkstraShortestPath(paths, fromUni.getUniversityName(), toUni.getUniversityName(), false);
+            List<UniPaths> segment = UniPaths.DijkstraPaths;
+            
+            // هایلایت تمام یال‌های مسیر
+            for (UniPaths path : segment) {
+                path.setHighlighted(true);
             }
         }
 
-        // 3. اعمال تغییرات روی گراف
+        // 3. مسیر بازگشت به نقطه شروع
+        Universities lastUni = selected.get(order.get(order.size() - 1));
+        Universities firstUni = selected.get(order.get(0));
+        
+        UniPaths.DijkstraShortestPath(paths, lastUni.getUniversityName(), firstUni.getUniversityName(), false);
+        List<UniPaths> returnSegment = UniPaths.DijkstraPaths;
+        
+        for (UniPaths path : returnSegment) {
+            path.setHighlighted(true);
+        }
+
+        // 4. اعمال تغییرات روی گراف
         graphPanel.repaint();
-        System.out.println("مسیرهای هایلایت شده: " +
-                paths.stream().filter(UniPaths::isHighlighted).count()); // برای دیباگ
+        System.out.println("مسیرهای TSP هایلایت شده: " +
+                paths.stream().filter(UniPaths::isHighlighted).count());
     }
 
     // رندرر سفارشی برای نمایش دانشگاه‌ها در لیست

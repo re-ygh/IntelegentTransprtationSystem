@@ -331,7 +331,7 @@ public class GraphPanel extends JPanel {
                         UniPaths newPath = new UniPaths(
                                 startTime, endTime, cost, capacity,
                                 dragStartNode, endNode,
-                                false, capacity, null
+                                false, capacity, new ArrayList<>()
                         );
                         paths.add(newPath);
                     }
@@ -458,8 +458,9 @@ public class GraphPanel extends JPanel {
     /** دیالوگ پیشنهاد مسیر و رزرو هوشمند */
 // در همان کلاسی که متدهای UI را نگه می‌دارد (مثلاً GraphPanel یا MainFrame)
     private void showSuggestionDialog() {
+        Window window = SwingUtilities.getWindowAncestor(this);
         JDialog dialog = new JDialog(
-                (Frame) SwingUtilities.getWindowAncestor(this),
+                window instanceof Frame ? (Frame) window : null,
                 "پیشنهاد مسیر و رزرو هوشمند",
                 true
         );

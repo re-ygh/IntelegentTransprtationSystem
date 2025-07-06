@@ -45,7 +45,7 @@ public class GraphUtils {
                         other.getUniversityName(),
                         true,   // isRandom
                         20,     // remainingCapacity اولیه
-                        null    // info اضافی
+                        new ArrayList<>()    // reservations خالی
                 );
                 pq.offer(edge);
             }

@@ -14,6 +14,7 @@ public class main {
 
     public static JPanel mainPanel;
     public static CardLayout cardLayout;
+    public static TSPPage tspPage;
 
     public static void main(String[] args) {
 
@@ -141,7 +142,7 @@ public class main {
         frame.setSize(1100, 700);
         frame.setLocationRelativeTo(null);
 
-        TSPPage tspPage = new TSPPage(graphPanel, universities, paths);
+        tspPage = new TSPPage(graphPanel, universities, paths);
 
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
@@ -318,6 +319,11 @@ public class main {
             
             // به‌روزرسانی ComboBox ها
             updateComboBoxes.run();
+            
+            // به‌روزرسانی لیست دانشگاه‌ها در TSP
+            if (tspPage != null) {
+                tspPage.updateUniversityList();
+            }
 
             if (universities.size() > 1) {
                 JOptionPane.showMessageDialog(panel,
@@ -372,7 +378,7 @@ public class main {
                 UniPaths newPath = new UniPaths(
                         startTime, endTime, cost, capacity,
                         from.getUniversityName(), to.getUniversityName(),
-                        false, capacity, null
+                        false, capacity, new ArrayList<>()
                 );
 
                 // چک تکراری بودن مسیر در همان جهت (فقط برای یال‌های غیر رندوم)
