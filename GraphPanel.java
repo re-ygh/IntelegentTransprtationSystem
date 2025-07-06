@@ -542,7 +542,7 @@ public class GraphPanel extends JPanel {
                 return;
             }
             for (UniPaths p : paths) p.setHighlighted(false);
-            boolean found = UniPaths.DijkstraShortestPath(paths, dest, origin, false);
+            boolean found = UniPaths.DijkstraShortestPath(paths, origin, dest, false);
             if (!found) {
                 JOptionPane.showMessageDialog(dialog,
                         "مسیر مناسبی یافت نشد.",
@@ -572,7 +572,7 @@ public class GraphPanel extends JPanel {
             }
 
             // ۱) مسیر بر اساس هزینه+زمان بی‌درنظر ظرفیت بیاب (برای چک ظرفیت)
-            List<UniPaths> bestPath = UniPaths.findShortestPathEdges(paths, dest, origin);
+            List<UniPaths> bestPath = UniPaths.findShortestPathEdges(paths, origin, dest);
             if (bestPath.isEmpty()) {
                 JOptionPane.showMessageDialog(dialog,
                         "مسیر مناسبی یافت نشد.",
@@ -607,13 +607,13 @@ public class GraphPanel extends JPanel {
                 } else {
                     // تغییر مسیر: حالا مسیر بعدی را با کاهش ظرفیت واقعی پیدا کن
                     for (UniPaths p : paths) p.setHighlighted(false);
-                    boolean found = UniPaths.DijkstraShortestPath(paths, dest, origin, true);
+                    boolean found = UniPaths.DijkstraShortestPath(paths, origin, dest, true);
                     if (!found) {
                         JOptionPane.showMessageDialog(dialog,
                                 "مسیر دیگری یافت نشد.",
                                 "خطا", JOptionPane.WARNING_MESSAGE);
                     } else {
-                        List<UniPaths> bestPath2 = UniPaths.findShortestPathEdges(paths, dest, origin);
+                        List<UniPaths> bestPath2 = UniPaths.findShortestPathEdges(paths, origin, dest);
 
                         reservations.add(new Reservation(student, origin, dest, bestPath2));
                         repaint();
@@ -626,13 +626,13 @@ public class GraphPanel extends JPanel {
             } else {
                 // ظرفیت دارد: مستقیم رزرو (کاهش ۱ واحد ظرفیت)
                 for (UniPaths p : paths) p.setHighlighted(false);
-                boolean found = UniPaths.DijkstraShortestPath(paths, dest, origin, true);
+                boolean found = UniPaths.DijkstraShortestPath(paths, origin, dest, true);
                 if (!found) {
                     JOptionPane.showMessageDialog(dialog,
                             "خطا در رزرو مسیر.",
                             "خطا", JOptionPane.ERROR_MESSAGE);
                 } else {
-                    List<UniPaths> bestPath3 = UniPaths.findShortestPathEdges(paths, dest, origin);
+                    List<UniPaths> bestPath3 = UniPaths.findShortestPathEdges(paths, origin, dest);
                     reservations.add(new Reservation(student, origin, dest, bestPath3));
                     repaint();
                     if (heatPanel != null && heatPanel.isShowing()) {
