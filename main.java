@@ -20,57 +20,99 @@ public class main {
 
         //رندوم شت برای تست
         Random rand = new Random();
+        int panelWidth  = 750;
+        int panelHeight = 700;
 
-// ۱) ۵ دانشگاه در ۵ منطقه‌ی مختلف
-        String[] uniNames = {
-                "دانشگاه شمال",
-                "دانشگاه جنوب",
-                "دانشگاه شرق",
-                "دانشگاه غرب",
-                "دانشگاه مرکز"
-        };
-        String[] regions = {"شمال","جنوب","شرق","غرب","مرکز"};
-        for (int i = 0; i < uniNames.length; i++) {
+// 1) تولید ۱۵ دانشگاه با توزیع تصادفی، به‌گونه‌ای که هر منطقه حداقل ۲ دانشگاه داشته باشد
+        String[] regions = {"شمال", "جنوب", "شرق", "غرب", "مرکز"};
+        int minPerRegion = 2;
+        int totalUniversities = 15;
+
+// آماده‌سازی لیست مناطق (حداقل ۲ بار هر منطقه)
+        List<String> regionPool = new ArrayList<>();
+        for (String r : regions) {
+            for (int i = 0; i < minPerRegion; i++) {
+                regionPool.add(r);
+            }
+        }
+// پرکردن باقی‌مانده تا ۱۵ با مناطق تصادفی
+        while (regionPool.size() < totalUniversities) {
+            regionPool.add(regions[rand.nextInt(regions.length)]);
+        }
+        Collections.shuffle(regionPool, rand);
+
+// نام‌گذاری داینامیک
+        Map<String, Integer> nameCount = new HashMap<>();
+        for (String region : regionPool) {
+            int cnt = nameCount.getOrDefault(region, 0) + 1;
+            nameCount.put(region, cnt);
+            String uniName = "دانشگاه " + region + " " + cnt;
             Universities u = Universities.generateNewUniversity(
-                    uniNames[i],
-                    regions[i],
-                    0,    // startTime (برای تست اهمیتی ندارد)
-                    0,    // FinishTime
-                    universities,
-                    750,  // panelWidth
-                    700   // panelHeight
+                    uniName, region, 0, 0, universities, panelWidth, panelHeight
             );
             universities.add(u);
-            universityPositions.put(
-                    u.getUniversityName(),
-                    new Point(u.getX(), u.getY())
-            );
+            universityPositions.put(u.getUniversityName(), new Point(u.getX(), u.getY()));
         }
 
-// ۲) ۱۲ یال تصادفی با یک یال مجاز به هر جهت برای هر جفت و اجازه‌ی معکوس
+// 2) مرحله‌ی اتصال اولیه: برای هر منطقه یک «درخت پوشا» (chain) بسازیم
         Set<String> usedPairs = new HashSet<>();
-        int edgesToAdd = 12;
+        Map<String, List<Integer>> regionIndices = new HashMap<>();
+        for (int i = 0; i < universities.size(); i++) {
+            String region = universities.get(i).getUniversityLocation();
+            regionIndices.computeIfAbsent(region, k -> new ArrayList<>()).add(i);
+        }
+        for (List<Integer> idxs : regionIndices.values()) {
+            Collections.shuffle(idxs, rand);
+            for (int i = 1; i < idxs.size(); i++) {
+                int fromIdx = idxs.get(i - 1);
+                int toIdx   = idxs.get(i);
+                String key  = fromIdx + "->" + toIdx;
+                // اگر هنوز این جهت استفاده نشده، اضافه کن
+                if (!usedPairs.contains(key)) {
+                    usedPairs.add(key);
+                    Universities from = universities.get(fromIdx);
+                    Universities to   = universities.get(toIdx);
+                    // ساخت یال با ویژگی‌های تصادفی
+                    UniPaths p = new UniPaths(
+                            rand.nextInt(24),                      // startTime
+                            rand.nextInt(24 - rand.nextInt(24))    // endTime (بزرگ‌تر از startTime)
+                                    + rand.nextInt(24) + 1,
+                            rand.nextInt(391) + 10,                // cost [10,400]
+                            rand.nextInt(5) + 1,                   // cap [1,5]
+                            from.getUniversityName(),
+                            to.getUniversityName(),
+                            rand.nextBoolean(),
+                            20,                                   // remainingCapacity = capacity
+                            new ArrayList<>()
+                    );
+                    paths.add(p);
+                }
+            }
+        }
+
+// 3) اضافه‌کردن یال‌های تصادفی تا رسیدن به مثلاً ۳۰ یال
+        int edgesToAdd = 30;
         while (paths.size() < edgesToAdd) {
             int fromIdx = rand.nextInt(universities.size());
             int toIdx;
-            do {
-                toIdx = rand.nextInt(universities.size());
-            } while (toIdx == fromIdx);
+            do { toIdx = rand.nextInt(universities.size()); }
+            while (toIdx == fromIdx);
 
-            String key = fromIdx + "->" + toIdx;
-            if (usedPairs.contains(key)) {
-                continue;  // اگر این جهت قبلاً ساخته شده، دور بعد
-            }
-            usedPairs.add(key);
+            String forwardKey = fromIdx + "->" + toIdx;
+            String reverseKey = toIdx + "->" + fromIdx;
+            // اگر این جهت قبلاً ایجاد شده، رد کن
+            if (usedPairs.contains(forwardKey)) continue;
+            // اگر هر دو جهت قبلاً استفاده شده (یعنی already two edges)، رد کن
+            if (usedPairs.contains(forwardKey) && usedPairs.contains(reverseKey)) continue;
 
+            usedPairs.add(forwardKey);
             Universities from = universities.get(fromIdx);
             Universities to   = universities.get(toIdx);
 
-            int cost      = rand.nextInt(391) + 10;                  // [10,400]
-            int cap       = rand.nextInt(5)   + 1;                   // [1,5]
-            int startTime = rand.nextInt(24);                        // [0,23]
-            int endTime   = rand.nextInt(24 - startTime)
-                    + startTime + 1;                       // (startTime,24]
+            int cost      = rand.nextInt(391) + 10;
+            int cap       = rand.nextInt(5)   + 1;
+            int startTime = rand.nextInt(24);
+            int endTime   = rand.nextInt(24 - startTime) + startTime + 1;
             boolean isRandom = rand.nextBoolean();
 
             UniPaths p = new UniPaths(
@@ -81,12 +123,15 @@ public class main {
                     from.getUniversityName(),
                     to.getUniversityName(),
                     isRandom,
-                    cap,                    // remainingCapacity = capacity
-                    new ArrayList<>()       // لیست رزروهای اولیه خالی
+                    cap,
+                    new ArrayList<>()
             );
             paths.add(p);
         }
-        // پایان رندوم شت
+// تمام! اکنون:
+// • هر منطقه یک زیرگراف متصل دارد.
+// • بین هر جفت دانشگاه حداکثر دو یال (یک در هر جهت) وجود دارد.
+// پایان رندوم شیت
 
 
 

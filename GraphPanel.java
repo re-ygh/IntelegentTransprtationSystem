@@ -416,13 +416,12 @@ public class GraphPanel extends JPanel {
         }
 
         // ترسیم نودها
-        Map<String, Color> colors = Map.of(
-                "شمال", new Color(252, 61, 3),
-                "جنوب", new Color(252, 152, 3),
-                "شرق", new Color(177, 3, 252),
-                "غرب", new Color(252, 3, 136),
-                "مرکز", new Color(7, 169, 250)
-        );
+        Map<String, Color> colors = new HashMap<>();
+        colors.put("شمال", new Color(252, 61, 3));
+        colors.put("جنوب", new Color(252, 152, 3));
+        colors.put("شرق", new Color(177, 3, 252));
+        colors.put("غرب", new Color(252, 3, 136));
+        colors.put("مرکز", new Color(7, 169, 250));
         for (Universities uObj : universities) {
             Point pt = universityPositions.get(uObj.getUniversityName());
             if (pt == null) continue;
@@ -918,72 +917,84 @@ public class GraphPanel extends JPanel {
                     }
 
                     // نگاشت نام دانشگاه → نام منطقه
-                    Map<String,String> nodeRegion = GraphPartitioner
-                            .partitionNodesByRegion(universities)
-                            .entrySet().stream()
-                            .flatMap(e -> e.getValue().stream()
-                                    .map(u -> Map.entry(u.getUniversityName(), e.getKey())))
-                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                    Map<String,String> nodeRegion = new HashMap<>();
+                    Map<String, List<Universities>> regions = GraphPartitioner.partitionNodesByRegion(universities);
+                    for (Map.Entry<String, List<Universities>> e : regions.entrySet()) {
+                        String region = e.getKey();
+                        for (Universities u : e.getValue()) {
+                            nodeRegion.put(u.getUniversityName(), region);
+                        }
+                    }
 
                     // رسم همه یال‌ها
                     for (UniPaths p : paths) {
                         Point a = universityPositions.get(p.getStartLocation());
                         Point b = universityPositions.get(p.getEndLocation());
                         if (a == null || b == null) continue;
-                        // رنگ پیش‌فرض
-                        g2.setColor(Color.LIGHT_GRAY);
+                        
+                        // رنگ پیش‌فرض: مشکی
+                        g2.setColor(Color.BLACK);
+                        g2.setStroke(new BasicStroke(1));
+                        
                         // اگر یال در previewEdges باشد، رنگش را تغییر بده
                         if (previewEdges != null && previewEdges.contains(p)) {
-
-                            if (previewMode == PreviewMode.REGION) g2.setColor(Color.RED);
-                            else { // GLOBAL
-                                // درون حلقه‌ی یال‌ها:
+                            if (previewMode == PreviewMode.REGION) {
+                                g2.setColor(Color.RED);
+                                g2.setStroke(new BasicStroke(3));
+                            } else { // GLOBAL
                                 String region = nodeRegion.get(p.getStartLocation());
                                 // تخصیص رنگ بر اساس منطقه
-                                 Color c = switch(region) {
-                                    case "شمال"  -> Color.CYAN;
-                                    case "جنوب"  -> Color.MAGENTA;
-                                    case "شرق"   -> Color.ORANGE;
-                                    case "غرب"   -> Color.PINK;
-                                    case "مرکز"  -> Color.YELLOW;
-                                    default       -> Color.LIGHT_GRAY;
-                                };
-                                g2.setColor(c);
-                                g2.setStroke(new BasicStroke(2));
-                                // رسم منحنی اگر یال موازی است
-                                String key = a.toString() + "-" + b.toString();
-                                if (dup.getOrDefault(key, 0) > 1) {
-                                    QuadCurve2D.Double curve = createCurve(a, b);
-                                    g2.draw(curve);
-                                    drawArrowOnCurve(g2, curve);
-                                    // نوشتن هزینه و ظرفیت
-                                    Point mid = controlPoint(a, b);
-                                    g2.drawString(p.getCost() + "(" + p.getRemainingCapacity() + ")", mid.x, mid.y);
-                                } else {
-                                    drawArrow(g2, b.x, b.y, a.x, a.y);
-                                    // نوشتن هزینه و ظرفیت
-                                    int mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-                                    g2.drawString(p.getCost() + "(" + p.getRemainingCapacity() + ")", mx, my);
+                                Color c;
+                                switch(region) {
+                                    case "شمال": c = Color.CYAN; break;
+                                    case "جنوب": c = Color.MAGENTA; break;
+                                    case "شرق": c = Color.ORANGE; break;
+                                    case "غرب": c = Color.PINK; break;
+                                    case "مرکز": c = Color.YELLOW; break;
+                                    default: c = Color.LIGHT_GRAY; break;
                                 }
-                            }
-                            // رسم نودها
-                            for (Universities u : universities) {
-                                Point pt = universityPositions.get(u.getUniversityName());
-                                Color nodeColor = switch (u.getUniversityLocation()) {
-                                    case "شمال" -> Color.CYAN;
-                                    case "جنوب" -> Color.MAGENTA;
-                                    case "شرق" -> Color.ORANGE;
-                                    case "غرب" -> Color.PINK;
-                                    case "مرکز" -> Color.YELLOW;
-                                    default -> Color.GRAY;
-                                };
-                                g2.setColor(nodeColor);
-                                g2.fillOval(pt.x - 8, pt.y - 8, 16, 16);
-                                g2.setColor(Color.BLACK);
-                                g2.drawString(u.getUniversityName(), pt.x + 10, pt.y);
+                                g2.setColor(c);
+                                g2.setStroke(new BasicStroke(3));
                             }
                         }
-                    };
+                        
+                        // رسم یال (مستقیم یا منحنی)
+                        String key = a.toString() + "-" + b.toString();
+                        if (dup.getOrDefault(key, 0) > 1) {
+                            QuadCurve2D.Double curve = createCurve(a, b);
+                            g2.draw(curve);
+                            drawArrowOnCurve(g2, curve);
+                            // نوشتن هزینه و ظرفیت
+                            Point mid = controlPoint(a, b);
+                            g2.drawString(p.getCost() + "(" + p.getRemainingCapacity() + ")", mid.x, mid.y);
+                        } else {
+                            drawArrow(g2, b.x, b.y, a.x, a.y);
+                            // نوشتن هزینه و ظرفیت
+                            int mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+                            g2.drawString(p.getCost() + "(" + p.getRemainingCapacity() + ")", mx, my);
+                        }
+                    }
+                    
+                    // رسم نودها
+                    for (Universities u : universities) {
+                        Point pt = universityPositions.get(u.getUniversityName());
+                        if (pt == null) continue;
+                        
+                        // رنگ نود بر اساس منطقه
+                        Color nodeColor;
+                        switch (u.getUniversityLocation()) {
+                            case "شمال": nodeColor = Color.CYAN; break;
+                            case "جنوب": nodeColor = Color.MAGENTA; break;
+                            case "شرق": nodeColor = Color.ORANGE; break;
+                            case "غرب": nodeColor = Color.PINK; break;
+                            case "مرکز": nodeColor = Color.YELLOW; break;
+                            default: nodeColor = Color.GRAY; break;
+                        }
+                        g2.setColor(nodeColor);
+                        g2.fillOval(pt.x - 8, pt.y - 8, 16, 16);
+                        g2.setColor(Color.BLACK);
+                        g2.drawString(u.getUniversityName(), pt.x + 10, pt.y);
+                    }
                 }
             };
 
@@ -995,31 +1006,31 @@ public class GraphPanel extends JPanel {
                             "لطفاً یک منطقه انتخاب کنید.", "خطا", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-                var regs2 = GraphPartitioner.partitionNodesByRegion(universities);
-                var parts = GraphPartitioner.partitionEdgesByRegion(regs2, paths);
+                Map<String, List<Universities>> regs2 = GraphPartitioner.partitionNodesByRegion(universities);
+                Map<String, List<UniPaths>> parts = GraphPartitioner.partitionEdgesByRegion(regs2, paths);
                 Set<String> names = regs2.get(sel).stream()
                         .map(Universities::getUniversityName).collect(Collectors.toSet());
                 previewEdges = parts.get("intra").stream()
-                        .filter(p -> names.contains(p.getStartLocation())).toList();
+                        .filter(p -> names.contains(p.getStartLocation())).collect(Collectors.toList());
                 previewMode = PreviewMode.REGION;
                 previewPanel.repaint();
             });
 
             btnGlobal.addActionListener(e -> {
-                var regs3 = GraphPartitioner.partitionNodesByRegion(universities);
-                var parts = GraphPartitioner.partitionEdgesByRegion(regs3, paths);
+                Map<String, List<Universities>> regs3 = GraphPartitioner.partitionNodesByRegion(universities);
+                Map<String, List<UniPaths>> parts = GraphPartitioner.partitionEdgesByRegion(regs3, paths);
                 List<UniPaths> allMst = new ArrayList<>();
                 for (String r : regs3.keySet()) {
                     Set<String> names = regs3.get(r).stream()
                             .map(Universities::getUniversityName).collect(Collectors.toSet());
-                    var regionEdges = parts.get("intra").stream()
-                            .filter(p -> names.contains(p.getStartLocation())).toList();
+                    List<UniPaths> regionEdges = parts.get("intra").stream()
+                            .filter(p -> names.contains(p.getStartLocation())).collect(Collectors.toList());
                     allMst.addAll(MSTCalculator.computeMST(regs3.get(r), regionEdges));
                 }
                 // فقط یال‌های بین‌بخشیِ MST خوشه‌ای را اضافه کن:
-//                allMst.addAll(
-//                        GraphPartitioner.computeInterRegionMST(regs, parts.get("inter"))
-//                );
+                allMst.addAll(
+                        GraphPartitioner.computeInterRegionMST(regs3, parts.get("inter"))
+                );
                 previewEdges = allMst;
                 previewMode = PreviewMode.GLOBAL;
                 previewPanel.repaint();
