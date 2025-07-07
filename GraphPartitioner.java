@@ -1,6 +1,7 @@
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class GraphPartitioner {
     /**
@@ -43,6 +44,7 @@ public class GraphPartitioner {
 
     /**
      * پیدا کردن کم‌ترین یال‌های بین‌بخشی که همه‌ی ناحیه‌ها را به هم وصل کند.
+     * همچنین اطمینان از پوشش همه نودها در MST کل.
      * @param regions خروجی partitionNodesByRegion (نام منطقه → لیست دانشگاه‌ها)
      * @param interEdges لیست یال‌های بین‌بخشی
      * @return لیستی از UniPaths (یال‌های بین‌بخشی) که یک MST روی خوشه‌ها می‌سازد
@@ -51,15 +53,14 @@ public class GraphPartitioner {
             Map<String, List<Universities>> regions,
             List<UniPaths> interEdges) {
 
-
         // 1) نگاشت نام دانشگاه → منطقه
-                Map<String,String> nodeRegion = new HashMap<>();
-                for (Map.Entry<String, List<Universities>> entry : regions.entrySet()) {
-                        String region = entry.getKey();
-                        for (Universities u : entry.getValue()) {
-                                nodeRegion.put(u.getUniversityName(), region);
-                            }
-                    }
+        Map<String,String> nodeRegion = new HashMap<>();
+        for (Map.Entry<String, List<Universities>> entry : regions.entrySet()) {
+            String region = entry.getKey();
+            for (Universities u : entry.getValue()) {
+                nodeRegion.put(u.getUniversityName(), region);
+            }
+        }
 
         // 2) لیست نام مناطق و ایندکس هر کدام برای UnionFind
         List<String> regionList = new ArrayList<>(regions.keySet());
@@ -111,6 +112,100 @@ public class GraphPartitioner {
                 if (connectors.size() == n - 1) break;
             }
         }
+
+        // 6) بررسی و اضافه کردن یال‌های اضافی برای اطمینان از پوشش همه نودها
+        // اگر نودی در منطقه خودش به هیچ نود دیگری وصل نباشد، کم‌هزینه‌ترین یال بین‌منطقه‌ای را اضافه می‌کنیم
+        Set<String> connectedNodes = new HashSet<>();
+        for (UniPaths connector : connectors) {
+            connectedNodes.add(connector.getStartLocation());
+            connectedNodes.add(connector.getEndLocation());
+        }
+
+        // بررسی نودهای غیرمتصل
+        for (Map.Entry<String, List<Universities>> entry : regions.entrySet()) {
+            String region = entry.getKey();
+            List<Universities> regionNodes = entry.getValue();
+            
+            for (Universities node : regionNodes) {
+                String nodeName = node.getUniversityName();
+                if (!connectedNodes.contains(nodeName)) {
+                    // این نود به هیچ نود دیگری وصل نیست، کم‌هزینه‌ترین یال بین‌منطقه‌ای را اضافه می‌کنیم
+                    UniPaths bestEdge = null;
+                    double minCost = Double.MAX_VALUE;
+                    
+                    for (UniPaths edge : interEdges) {
+                        if (edge.getStartLocation().equals(nodeName) || edge.getEndLocation().equals(nodeName)) {
+                            double cost = edge.getCost() + (edge.getEndTime() - edge.getStartTime());
+                            if (cost < minCost) {
+                                minCost = cost;
+                                bestEdge = edge;
+                            }
+                        }
+                    }
+                    
+                    if (bestEdge != null && !connectors.contains(bestEdge)) {
+                        connectors.add(bestEdge);
+                        connectedNodes.add(bestEdge.getStartLocation());
+                        connectedNodes.add(bestEdge.getEndLocation());
+                    }
+                }
+            }
+        }
+
         return connectors;
+    }
+
+    /**
+     * محاسبه MST کامل با در نظر گرفتن همه نودها و اطمینان از پوشش کامل
+     * @param regions مناطق و نودهای هر منطقه
+     * @param allPaths تمام یال‌های موجود
+     * @return لیست یال‌های MST کامل
+     */
+    public static List<UniPaths> computeCompleteMST(
+            Map<String, List<Universities>> regions,
+            List<UniPaths> allPaths) {
+        
+        List<UniPaths> completeMST = new ArrayList<>();
+        
+        // 1. محاسبه MST برای هر منطقه
+        Map<String, List<UniPaths>> partitionedEdges = partitionEdgesByRegion(regions, allPaths);
+        
+        for (Map.Entry<String, List<Universities>> entry : regions.entrySet()) {
+            String region = entry.getKey();
+            List<Universities> regionNodes = entry.getValue();
+            
+            // فیلتر کردن یال‌های درون منطقه
+            List<UniPaths> regionEdges = partitionedEdges.get("intra").stream()
+                    .filter(p -> {
+                        String r1 = getNodeRegion(p.getStartLocation(), regions);
+                        String r2 = getNodeRegion(p.getEndLocation(), regions);
+                        return r1 != null && r1.equals(region) && r2 != null && r2.equals(region);
+                    })
+                    .collect(Collectors.toList());
+            
+            // محاسبه MST برای این منطقه
+            List<UniPaths> regionMST = MSTCalculator.computeMST(regionNodes, regionEdges);
+            completeMST.addAll(regionMST);
+        }
+        
+        // 2. اضافه کردن یال‌های بین‌منطقه‌ای برای اتصال مناطق
+        List<UniPaths> interConnectors = computeInterRegionMST(regions, partitionedEdges.get("inter"));
+        completeMST.addAll(interConnectors);
+        
+        return completeMST;
+    }
+    
+    /**
+     * متد کمکی برای پیدا کردن منطقه یک نود
+     */
+    private static String getNodeRegion(String nodeName, Map<String, List<Universities>> regions) {
+        for (Map.Entry<String, List<Universities>> entry : regions.entrySet()) {
+            for (Universities uni : entry.getValue()) {
+                if (uni.getUniversityName().equals(nodeName)) {
+                    return entry.getKey();
+                }
+            }
+        }
+        return null;
     }
 }

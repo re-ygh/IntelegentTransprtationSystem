@@ -1,11 +1,12 @@
 import java.awt.*;
 import java.util.List;
 import java.util.Random;
+import java.io.Serializable;
 
 /**
  * این کلاس نماینده‌ی هر دانشگاه در گراف است و شامل موقعیت، منطقه جغرافیایی و زمان‌های شروع/پایان می‌باشد.
  */
-public class Universities {
+public class Universities implements Serializable {
     private String universityName;
     private String universityLocation;
     private int startTime, FinishTime;

@@ -1,6 +1,5 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.geom.*;
 import java.util.List;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -16,11 +15,14 @@ public class TSPPage extends JPanel {
     private JTextArea resultArea;
     private JButton calculateButton;
     private JButton visualizeButton;
+    private JButton showMatrixButton;
 
     private JButton backButton; // دکمه جدید برای بازگشت
     private JDialog graphDialog; // دیالوگ جدید برای نمایش گراف
     private JTextArea logArea; // ناحیه متن برای لاگ در پنل اصلی
 
+    // Add a field to store the last cost matrix
+    private double[][] lastCostMatrix;
 
     public TSPPage(GraphPanel graphPanel, List<Universities> universities, List<UniPaths> paths) {
         this.graphPanel = graphPanel;
@@ -107,8 +109,12 @@ public class TSPPage extends JPanel {
         visualizeButton.setEnabled(false);
         visualizeButton.addActionListener(e -> visualizePath());
 
+        showMatrixButton = new JButton("نمایش ماتریس هزینه/زمان");
+        showMatrixButton.addActionListener(e -> showCostMatrixDialog());
+
         panel.add(calculateButton);
         panel.add(visualizeButton);
+        panel.add(showMatrixButton);
 
         return panel;
     }
@@ -126,6 +132,7 @@ public class TSPPage extends JPanel {
         try {
             // ساخت ماتریس هزینه
             double[][] costMatrix = GraphUtils.buildCostMatrix(selected, paths);
+            this.lastCostMatrix = costMatrix;
 
             // حل مسئله TSP
             TSPSolver solver = new TSPSolver(costMatrix);
@@ -148,44 +155,86 @@ public class TSPPage extends JPanel {
     }
 
     private void displayResults(List<Universities> selected, List<Integer> pathIndices, double totalCost) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("بهترین ترتیب بازدید:\n");
+        if (selected == null || selected.isEmpty() || pathIndices == null || pathIndices.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "خطا: لیست دانشگاه‌ها یا مسیر بهینه خالی است.",
+                    "خطا", JOptionPane.ERROR_MESSAGE);
+            resultArea.setText("");
+            return;
+        }
+        // نمایش ماتریس هزینه/زمان
+        StringBuilder matrixText = new StringBuilder();
+        matrixText.append("ماتریس هزینه/زمان بین دانشگاه‌های انتخاب‌شده:\n");
+        matrixText.append("      ");
+        for (Universities u : selected) {
+            matrixText.append(String.format("%-15s", u.getUniversityName()));
+        }
+        matrixText.append("\n");
+        for (int i = 0; i < selected.size(); i++) {
+            matrixText.append(String.format("%-15s", selected.get(i).getUniversityName()));
+            for (int j = 0; j < selected.size(); j++) {
+                matrixText.append(String.format("%-15.0f", lastCostMatrix != null ? lastCostMatrix[i][j] : 0));
+            }
+            matrixText.append("\n");
+        }
+        matrixText.append("\n");
 
+        // لاگ مسیر TSP با قالب‌بندی زیبا
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== مسیر بهینه TSP ===\n\n");
+        sb.append("دانشگاه‌های انتخاب‌شده (").append(selected.size()).append("):\n");
         for (int i = 0; i < pathIndices.size(); i++) {
             int idx = pathIndices.get(i);
-            sb.append(i + 1).append(". ").append(selected.get(idx).getUniversityName());
-
-            if (i < pathIndices.size() - 1) {
-                int nextIdx = pathIndices.get(i + 1);
-                String from = selected.get(idx).getUniversityName();
-                String to = selected.get(nextIdx).getUniversityName();
-
-                // محاسبه جزئیات مسیر بین این دو دانشگاه
-                UniPaths.DijkstraShortestPath(paths, from, to, false);
-                List<UniPaths> segment = UniPaths.DijkstraPaths;
-
-                sb.append(" → ").append(to)
-                        .append(" (هزینه: ").append(segment.stream().mapToInt(UniPaths::getCost).sum())
-                        .append(", زمان: ").append(segment.stream().mapToInt(p -> p.getEndTime() - p.getStartTime()).sum())
-                        .append(")\n");
-            }
+            sb.append(selected.get(idx).getUniversityName());
+            if (i < pathIndices.size() - 1) sb.append(" → ");
         }
+        sb.append("\n\n");
+        sb.append("——————————————\n");
 
-        // مسیر بازگشت به نقطه شروع
+        for (int i = 0; i < pathIndices.size() - 1; i++) {
+            int fromIdx = pathIndices.get(i);
+            int toIdx = pathIndices.get(i + 1);
+            String from = selected.get(fromIdx).getUniversityName();
+            String to = selected.get(toIdx).getUniversityName();
+            // محاسبه مسیر بین این دو دانشگاه
+            UniPaths.DijkstraShortestPath(paths, from, to, false);
+            List<UniPaths> segment = UniPaths.DijkstraPaths;
+            sb.append("بخش ").append(i + 1).append(": ").append(from).append(" → ").append(to).append("\n");
+            sb.append("مسیر: ");
+            for (int j = 0; j < segment.size(); j++) {
+                sb.append(segment.get(j).getStartLocation());
+                if (j < segment.size() - 1) sb.append(" → ");
+            }
+            if (!segment.isEmpty()) {
+                sb.append(" → ").append(segment.get(segment.size() - 1).getEndLocation());
+            }
+            sb.append("\n");
+            int cost = segment.stream().mapToInt(UniPaths::getCost).sum();
+            int time = segment.stream().mapToInt(p -> p.getEndTime() - p.getStartTime()).sum();
+            sb.append("هزینه: ").append(cost).append(" | زمان: ").append(time).append("\n");
+            sb.append("——————————————\n");
+        }
+        // مسیر بازگشت
         int lastIdx = pathIndices.get(pathIndices.size() - 1);
         int firstIdx = pathIndices.get(0);
-        String from = selected.get(lastIdx).getUniversityName();
-        String to = selected.get(firstIdx).getUniversityName();
-
-        UniPaths.DijkstraShortestPath(paths, from, to, false);
+        String lastUni = selected.get(lastIdx).getUniversityName();
+        String firstUni = selected.get(firstIdx).getUniversityName();
+        UniPaths.DijkstraShortestPath(paths, lastUni, firstUni, false);
         List<UniPaths> returnSegment = UniPaths.DijkstraPaths;
-
-        sb.append("\nمسیر بازگشت به نقطه شروع:\n")
-                .append(from).append(" → ").append(to)
-                .append(" (هزینه: ").append(returnSegment.stream().mapToInt(UniPaths::getCost).sum())
-                .append(", زمان: ").append(returnSegment.stream().mapToInt(p -> p.getEndTime() - p.getStartTime()).sum())
-                .append(")\n\n")
-                .append("هزینه کل سفر: ").append(totalCost);
+        sb.append("مسیر بازگشت: ").append(lastUni).append(" → ").append(firstUni).append("\n");
+        sb.append("مسیر: ");
+        for (int j = 0; j < returnSegment.size(); j++) {
+            sb.append(returnSegment.get(j).getStartLocation());
+            if (j < returnSegment.size() - 1) sb.append(" → ");
+        }
+        if (!returnSegment.isEmpty()) {
+            sb.append(" → ").append(returnSegment.get(returnSegment.size() - 1).getEndLocation());
+        }
+        sb.append("\n");
+        int cost = returnSegment.stream().mapToInt(UniPaths::getCost).sum();
+        int time = returnSegment.stream().mapToInt(p -> p.getEndTime() - p.getStartTime()).sum();
+        sb.append("هزینه: ").append(cost).append(" | زمان: ").append(time).append("\n");
+        sb.append("——————————————\n");
 
         resultArea.setText(sb.toString());
     }
@@ -241,6 +290,12 @@ public class TSPPage extends JPanel {
     }
 
     private void showLogInMainPanel(List<Universities> selected, List<Integer> order) {
+        if (selected == null || selected.isEmpty() || order == null || order.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "خطا: لیست دانشگاه‌ها یا مسیر بهینه خالی است.",
+                    "خطا", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         // تولید لاگ
         StringBuilder log = new StringBuilder();
         log.append("=== لاگ مسیر TSP ===\n\n");
@@ -306,89 +361,28 @@ public class TSPPage extends JPanel {
     }
 
     private void showGraphInNewPanel(List<Universities> selected, List<Integer> order) {
-        // ایجاد پنل جدید برای نمایش گراف - مشابه heatmap
-        if (graphDialog == null) {
-            // محاسبه اندازه مناسب برای دیالوگ
-            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
-            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
-            for (Point pt : main.universityPositions.values()) {
-                minX = Math.min(minX, pt.x);
-                minY = Math.min(minY, pt.y);
-                maxX = Math.max(maxX, pt.x);
-                maxY = Math.max(maxY, pt.y);
-            }
-            int width = maxX - minX + 40;  // 40 = margin
-            int height = maxY - minY + 40;
-            
-            graphDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "گراف TSP", false);
-            
-            // ایجاد پنل سفارشی برای نمایش گراف بدون دکمه‌های بالایی
-            JPanel tspGraphPanel = new JPanel() {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    super.paintComponent(g);
-                    Graphics2D g2 = (Graphics2D) g;
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    
-                    // رسم تمام یال‌ها
-                    for (UniPaths path : paths) {
-                        Point start = main.universityPositions.get(path.getStartLocation());
-                        Point end = main.universityPositions.get(path.getEndLocation());
-                        if (start == null || end == null) continue;
-                        
-                        // انتخاب رنگ بر اساس وضعیت هایلایت
-                        if (path.isHighlighted()) {
-                            g2.setColor(Color.RED);
-                            g2.setStroke(new BasicStroke(3)); // ضخیم‌تر برای مسیر TSP
-                        } else {
-                            g2.setColor(Color.BLACK);
-                            g2.setStroke(new BasicStroke(1));
-                        }
-                        
-                        // رسم یال
-                        g2.drawLine(start.x, start.y, end.x, end.y);
-                        
-                        // رسم فلش
-                        drawArrow(g2, start.x, start.y, end.x, end.y);
-                    }
-                    
-                    // رسم گره‌ها (دانشگاه‌ها)
-                    for (Map.Entry<String, Point> entry : main.universityPositions.entrySet()) {
-                        Point p = entry.getValue();
-                        g2.setColor(Color.BLUE);
-                        g2.fillOval(p.x - 10, p.y - 10, 20, 20);
-                        g2.setColor(Color.BLACK);
-                        g2.drawString(entry.getKey(), p.x + 12, p.y - 12);
-                    }
-                }
-                
-                // تابع کمکی برای رسم فلش
-                private void drawArrow(Graphics2D g2, int x1, int y1, int x2, int y2) {
-                    double angle = Math.atan2(y2 - y1, x2 - x1);
-                    int arrowLength = 10;
-                    int arrowAngle = 20;
-                    
-                    int x3 = (int) (x2 - arrowLength * Math.cos(angle - Math.toRadians(arrowAngle)));
-                    int y3 = (int) (y2 - arrowLength * Math.sin(angle - Math.toRadians(arrowAngle)));
-                    int x4 = (int) (x2 - arrowLength * Math.cos(angle + Math.toRadians(arrowAngle)));
-                    int y4 = (int) (y2 - arrowLength * Math.sin(angle + Math.toRadians(arrowAngle)));
-                    
-                    g2.drawLine(x2, y2, x3, y3);
-                    g2.drawLine(x2, y2, x4, y4);
-                }
-            };
-            
-            tspGraphPanel.setPreferredSize(new Dimension(width, height));
-            graphDialog.add(new JScrollPane(tspGraphPanel));
-            graphDialog.pack();
-            graphDialog.setLocationRelativeTo(this);
-        }
-        
-        // هایلایت مسیر روی گراف جدید
+        // ابتدا مسیر را هایلایت کن
         highlightPathOnNewGraph(selected, order);
-        
+
+        if (graphDialog == null) {
+            graphDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "گراف TSP", false);
+            graphDialog.setSize(800, 700);
+            graphDialog.setLocationRelativeTo(this);
+            graphDialog.setLayout(new BorderLayout());
+            GraphPanel newGraphPanel = new GraphPanel(new ArrayList<>(paths), main.universityPositions, universities, false);
+            graphDialog.add(newGraphPanel);
+            newGraphPanel.repaint();
+        } else {
+            // اگر قبلاً ساخته شده، فقط repaint کن
+            Component[] components = graphDialog.getContentPane().getComponents();
+            for (Component comp : components) {
+                if (comp instanceof GraphPanel) {
+                    comp.repaint();
+                    break;
+                }
+            }
+        }
         graphDialog.setVisible(true);
-        graphDialog.toFront();
     }
 
     private void highlightPathOnNewGraph(List<Universities> selected, List<Integer> order) {
@@ -439,17 +433,13 @@ public class TSPPage extends JPanel {
             System.out.println("  هایلایت بازگشت: " + path.getStartLocation() + " -> " + path.getEndLocation());
         }
 
-        // اعمال تغییرات روی گراف جدید - حالا باید JScrollPane را پیدا کنیم
+        // اعمال تغییرات روی گراف جدید
         if (graphDialog != null && graphDialog.isVisible()) {
             Component[] components = graphDialog.getContentPane().getComponents();
             for (Component comp : components) {
-                if (comp instanceof JScrollPane) {
-                    JScrollPane scrollPane = (JScrollPane) comp;
-                    Component viewportComponent = scrollPane.getViewport().getView();
-                    if (viewportComponent instanceof JPanel) {
-                        viewportComponent.repaint();
-                        break;
-                    }
+                if (comp instanceof GraphPanel) {
+                    comp.repaint();
+                    break;
                 }
             }
         }
@@ -494,6 +484,94 @@ public class TSPPage extends JPanel {
         graphPanel.repaint();
         System.out.println("مسیرهای TSP هایلایت شده: " +
                 paths.stream().filter(UniPaths::isHighlighted).count());
+    }
+
+    private void showCostMatrixDialog() {
+        if (lastCostMatrix == null || universityList.getSelectedValuesList().size() < 2) {
+            JOptionPane.showMessageDialog(this, "ابتدا مسیر را محاسبه کنید.", "خطا", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        List<Universities> selected = universityList.getSelectedValuesList();
+        int n = selected.size();
+        String[] colNames = new String[n+1];
+        colNames[0] = "";
+        for (int i = 0; i < n; i++) colNames[i+1] = selected.get(i).getUniversityName();
+        Object[][] data = new Object[n][n+1];
+        int[][] values = new int[n][n];
+        int[] minRow = new int[n];
+        int[] maxRow = new int[n];
+        for (int i = 0; i < n; i++) {
+            data[i][0] = selected.get(i).getUniversityName();
+            int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
+            for (int j = 0; j < n; j++) {
+                int val = (lastCostMatrix != null) ? (int)lastCostMatrix[i][j] : 0;
+                data[i][j+1] = val;
+                values[i][j] = val;
+                if (i != j && val < min) min = val;
+                if (i != j && val > max) max = val;
+            }
+            minRow[i] = min;
+            maxRow[i] = max;
+        }
+        JTable table = new JTable(data, colNames) {
+            @Override
+            public boolean isCellEditable(int row, int col) { return false; }
+        };
+        // Custom renderer for simple 4-color scheme
+        table.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
+            @Override
+            public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                // رنگ‌ها
+                Color white = Color.WHITE;
+                Color lightGray = new Color(230, 230, 230);
+                Color lightGreen = new Color(180, 255, 180);
+                Color darkGreen = new Color(60, 180, 60);
+                if (column == 0) {
+                    c.setBackground(lightGray);
+                } else if (row == column-1) {
+                    c.setBackground(white); // قطر اصلی
+                } else {
+                    int val = values[row][column-1];
+                    int min = minRow[row];
+                    int max = maxRow[row];
+                    if (val == 0) {
+                        c.setBackground(lightGray);
+                    } else if (val == min) {
+                        c.setBackground(darkGreen);
+                    } else if (val == max) {
+                        c.setBackground(lightGreen);
+                    } else {
+                        c.setBackground(lightGray);
+                    }
+                }
+                if (isSelected) {
+                    c.setBackground(new Color(255, 255, 0)); // زرد برای انتخاب
+                }
+                setHorizontalAlignment(CENTER);
+                return c;
+            }
+        });
+        table.setRowHeight(35); // Increased row height for better visibility
+        table.getTableHeader().setReorderingAllowed(false);
+        table.setFont(new Font("Tahoma", Font.PLAIN, 13));
+        table.getTableHeader().setFont(new Font("Tahoma", Font.BOLD, 13));
+        table.setGridColor(new Color(80, 120, 80));
+        table.setShowGrid(true);
+        table.setIntercellSpacing(new Dimension(3, 3)); // Increased spacing for better separation
+        table.setBackground(new Color(147, 196, 151));
+        table.getTableHeader().setBackground(new Color(147, 196, 151));
+
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.getViewport().setBackground(new Color(147, 196, 151));
+        scroll.setPreferredSize(new Dimension(Math.max(400, n*120), Math.max(200, n*35)));
+
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "ماتریس هزینه/زمان", true);
+        dialog.getContentPane().setBackground(new Color(147, 196, 151));
+        dialog.add(scroll);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 
     // رندرر سفارشی برای نمایش دانشگاه‌ها در لیست

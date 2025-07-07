@@ -45,16 +45,24 @@ public class GraphPanel extends JPanel {
     enum PreviewMode { REGION, GLOBAL }
     private PreviewMode previewMode;
 
+    private boolean showTopPanel = true;
 
     public GraphPanel(List<UniPaths> paths,
                       Map<String, Point> positions,
                       List<Universities> universities) {
+        this(paths, positions, universities, true);
+    }
+
+    public GraphPanel(List<UniPaths> paths,
+                      Map<String, Point> positions,
+                      List<Universities> universities,
+                      boolean showTopPanel) {
         this.paths = paths;
         this.universityPositions = positions;
         this.universities = universities;
-        setupTopButtons();
+        this.showTopPanel = showTopPanel;
+        if (showTopPanel) setupTopButtons();
         setupMouseListeners();
-        // Timer برای بروزرسانی نمایش Heatmap
         new Timer(1000, e -> repaint()).start();
     }
 
@@ -153,8 +161,8 @@ public class GraphPanel extends JPanel {
                     Map<String, Integer> pairCount = new HashMap<>();
                     Map<String, Integer> edgeIndex = new HashMap<>();
                     for (UniPaths p : paths) {
-                        String a = p.getStartLocation(), b = p.getEndLocation();
-                        String key = a.compareTo(b) < 0 ? a+"|"+b : b+"|"+a;
+                        String u = p.getStartLocation(), v = p.getEndLocation();
+                        String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
                         pairCount.put(key, pairCount.getOrDefault(key,0)+1);
                     }
 
@@ -164,48 +172,32 @@ public class GraphPanel extends JPanel {
                         if (a == null || b == null) continue;
 
                         int usage = usageCount.getOrDefault(p, 0);
-                        // constant stroke
-                        g2.setStroke(new BasicStroke(2));
-                        if (usage > 0) {
-                            // استفاده از ظرفیت باقی‌مانده برای محاسبه نسبت
-                            int totalCapacity = p.getCapacity();
-                            int remainingCapacity = p.getRemainingCapacity();
-                            int usedCapacity = totalCapacity - remainingCapacity;
-                            
-                            // جلوگیری از تقسیم بر صفر
-                            float ratio = totalCapacity > 0
-                                    ? Math.min(1f, (float) usedCapacity / totalCapacity)
-                                    : 0f;
-                            
-                            // colour gradient: white → light-red → dark-red → brown
-                            Color heatColor;
-                            if (ratio < 0.25f) {
-                                // اگر رنگ به سفید رسید، رنگ اولیه یال را برگردان
-                                if (p.isHighlighted())      heatColor = Color.RED;
-                                else if (mstEdges != null && mstEdges.contains(p)) heatColor = Color.BLUE;
-                                else if (p.isRandom())      heatColor = Color.LIGHT_GRAY;
-                                else                        heatColor = Color.BLACK;
-                            } else if (ratio < 0.5f) {
-                                heatColor = new Color(255, 200, 200); // light red
-                            } else if (ratio < 0.75f) {
-                                heatColor = new Color(255, 100, 100); // medium red
-                            } else if (ratio < 0.9f) {
-                                heatColor = new Color(255, 50, 50);   // dark red
-                            } else {
-                                heatColor = new Color(139, 0, 0);     // dark red (brown-like)
-                            }
-                            g2.setColor(heatColor);
+                        // تعیین رنگ پایه یال
+                        Color baseColor = p.isRandom() ? Color.LIGHT_GRAY : Color.BLACK;
+                        int totalCapacity = p.getCapacity();
+                        int remainingCapacity = p.getRemainingCapacity();
+                        int usedCapacity = totalCapacity - remainingCapacity;
+                        float ratio = totalCapacity > 0 ? Math.min(1f, (float) usedCapacity / totalCapacity) : 0f;
+                        Color heatColor;
+                        if (ratio == 0f) {
+                            heatColor = baseColor;
+                        } else if (ratio < 0.25f) {
+                            // interpolate baseColor to light red
+                            heatColor = interpolateColor(baseColor, new Color(255,200,200), ratio/0.25f);
+                        } else if (ratio < 0.5f) {
+                            // interpolate light red to medium red
+                            heatColor = interpolateColor(new Color(255,200,200), new Color(255,100,100), (ratio-0.25f)/0.25f);
+                        } else if (ratio < 0.75f) {
+                            // interpolate medium red to dark red
+                            heatColor = interpolateColor(new Color(255,100,100), new Color(255,50,50), (ratio-0.5f)/0.25f);
                         } else {
-                            // no usage: fallback to highlight / MST / random / black
-                            if (p.isHighlighted())      g2.setColor(Color.RED);
-                            else if (mstEdges != null &&
-                                    mstEdges.contains(p)) g2.setColor(Color.BLUE);
-                            else if (p.isRandom())      g2.setColor(Color.LIGHT_GRAY);
-                            else                        g2.setColor(Color.BLACK);
+                            // interpolate dark red to brown
+                            heatColor = interpolateColor(new Color(255,50,50), new Color(139,0,0), (ratio-0.75f)/0.25f);
                         }
+                        g2.setColor(heatColor);
 
                         String u = p.getStartLocation(), v = p.getEndLocation();
-                        String key = u + "|" + v;
+                        String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
                         // شمارش یال‌های مشابه برای تصمیم‌گیری منحنی
                         int currentIndex = edgeIndex.getOrDefault(key, 0);
                         edgeIndex.put(key, currentIndex + 1);
@@ -383,8 +375,8 @@ public class GraphPanel extends JPanel {
         Map<String, Integer> edgeIndex = new HashMap<>();
         for (UniPaths p : paths) {
             String u = p.getStartLocation(), v = p.getEndLocation();
-            // کلید بر اساس جهت واقعی یال
-            String key = u + "|" + v;
+            // کلید بدون جهت برای تشخیص یال‌های موازی
+            String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
             pairCount.put(key, pairCount.getOrDefault(key, 0) + 1);
         }
         for (UniPaths p : paths) {
@@ -398,7 +390,7 @@ public class GraphPanel extends JPanel {
                 else g2.setColor(Color.BLACK);
 
             String u = p.getStartLocation(), v = p.getEndLocation();
-            String key = u + "|" + v;
+            String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
             // شمارش یال‌های مشابه برای تصمیم‌گیری منحنی
             int currentIndex = edgeIndex.getOrDefault(key, 0);
             edgeIndex.put(key, currentIndex + 1);
@@ -745,7 +737,16 @@ public class GraphPanel extends JPanel {
         JButton moveBtn = new JButton("حرکت دانشجو");
         moveBtn.addActionListener(e -> moveNextStudent(model));
         JButton closeBtn = new JButton("بستن");
-        closeBtn.addActionListener(e -> dialog.dispose());
+        closeBtn.addActionListener(e -> {
+            // Reset all edge capacities and usageCount
+            for (UniPaths p : paths) {
+                p.setRemainingCapacity(p.getCapacity());
+            }
+            usageCount.clear();
+            repaint();
+            if (heatPanel != null) heatPanel.repaint();
+            dialog.dispose();
+        });
         btnPanel.add(moveBtn);
         btnPanel.add(closeBtn);
 
@@ -833,15 +834,39 @@ public class GraphPanel extends JPanel {
 
     private List<Point> buildPathPoints(List<UniPaths> edges) {
         List<Point> pts = new ArrayList<>();
+        // شمارش یال‌های موازی مشابه paintComponent
+        Map<String, Integer> pairCount = new HashMap<>();
+        Map<String, Integer> edgeIndex = new HashMap<>();
+        for (UniPaths p : paths) {
+            String u = p.getStartLocation(), v = p.getEndLocation();
+            String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
+            pairCount.put(key, pairCount.getOrDefault(key, 0) + 1);
+        }
         for (UniPaths e : edges) {
             Point a = universityPositions.get(e.getStartLocation());
             Point b = universityPositions.get(e.getEndLocation());
+            String u = e.getStartLocation(), v = e.getEndLocation();
+            String key = u.compareTo(v) < 0 ? u + "|" + v : v + "|" + u;
+            int currentIndex = edgeIndex.getOrDefault(key, 0);
+            edgeIndex.put(key, currentIndex + 1);
             int steps = 20;
-            for (int i = 0; i < steps; i++) {
-                double t = i / (double)(steps-1);
-                int x = (int)(a.x + t*(b.x - a.x));
-                int y = (int)(a.y + t*(b.y - a.y));
-                pts.add(new Point(x, y));
+            if (pairCount.getOrDefault(key, 0) > 1 && currentIndex > 0) {
+                // منحنی: نقاط روی منحنی Bézier درجه ۲
+                QuadCurve2D.Double curve = createCurve(a, b);
+                for (int i = 0; i < steps; i++) {
+                    double t = i / (double)(steps-1);
+                    double x = Math.pow(1-t,2)*curve.getX1() + 2*(1-t)*t*curve.getCtrlX() + Math.pow(t,2)*curve.getX2();
+                    double y = Math.pow(1-t,2)*curve.getY1() + 2*(1-t)*t*curve.getCtrlY() + Math.pow(t,2)*curve.getY2();
+                    pts.add(new Point((int)x, (int)y));
+                }
+            } else {
+                // خط مستقیم
+                for (int i = 0; i < steps; i++) {
+                    double t = i / (double)(steps-1);
+                    int x = (int)(a.x + t*(b.x - a.x));
+                    int y = (int)(a.y + t*(b.y - a.y));
+                    pts.add(new Point(x, y));
+                }
             }
         }
         return pts;
@@ -925,11 +950,12 @@ public class GraphPanel extends JPanel {
                     Graphics2D g2 = (Graphics2D) g;
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                             RenderingHints.VALUE_ANTIALIAS_ON);
-                    // شمارش یال‌های موازی
+                    // شمارش یال‌های موازی (کلید بدون جهت)
                     Map<String, Integer> dup = new HashMap<>();
                     Map<String, Integer> edgeIndex = new HashMap<>();
                     for (UniPaths p : paths) {
-                        String key = p.getStartLocation() + "|" + p.getEndLocation();
+                        String aName = p.getStartLocation(), bName = p.getEndLocation();
+                        String key = aName.compareTo(bName) < 0 ? aName + "|" + bName : bName + "|" + aName;
                         dup.put(key, dup.getOrDefault(key, 0) + 1);
                     }
 
@@ -976,8 +1002,8 @@ public class GraphPanel extends JPanel {
                         }
                         
                         // رسم یال (مستقیم یا منحنی)
-                        String key = p.getStartLocation() + "|" + p.getEndLocation();
-                        // شمارش یال‌های مشابه برای تصمیم‌گیری منحنی
+                        String aName = p.getStartLocation(), bName = p.getEndLocation();
+                        String key = aName.compareTo(bName) < 0 ? aName + "|" + bName : bName + "|" + aName;
                         int currentIndex = edgeIndex.getOrDefault(key, 0);
                         edgeIndex.put(key, currentIndex + 1);
                         
@@ -985,12 +1011,10 @@ public class GraphPanel extends JPanel {
                             QuadCurve2D.Double curve = createCurve(a, b);
                             g2.draw(curve);
                             drawArrowOnCurve(g2, curve);
-                            // نوشتن هزینه و ظرفیت
                             Point mid = controlPoint(a, b);
                             g2.drawString(p.getCost() + "(" + p.getRemainingCapacity() + ")", mid.x, mid.y);
                         } else {
                             drawArrow(g2, a.x, a.y, b.x, b.y);
-                            // نوشتن هزینه و ظرفیت
                             int mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
                             g2.drawString(p.getCost() + "(" + p.getRemainingCapacity() + ")", mx, my);
                         }
@@ -1028,31 +1052,33 @@ public class GraphPanel extends JPanel {
                     return;
                 }
                 Map<String, List<Universities>> regs2 = GraphPartitioner.partitionNodesByRegion(universities);
-                Map<String, List<UniPaths>> parts = GraphPartitioner.partitionEdgesByRegion(regs2, paths);
-                Set<String> names = regs2.get(sel).stream()
+                List<Universities> regionUniversities = regs2.get(sel);
+                Set<String> names = regionUniversities.stream()
                         .map(Universities::getUniversityName).collect(Collectors.toSet());
-                previewEdges = parts.get("intra").stream()
-                        .filter(p -> names.contains(p.getStartLocation())).collect(Collectors.toList());
+                List<UniPaths> regionEdges = paths.stream()
+                        .filter(p -> names.contains(p.getStartLocation()) && names.contains(p.getEndLocation()))
+                        .collect(Collectors.toList());
+                previewEdges = MSTCalculator.computeMST(regionUniversities, regionEdges);
                 previewMode = PreviewMode.REGION;
                 previewPanel.repaint();
             });
 
             btnGlobal.addActionListener(e -> {
-                Map<String, List<Universities>> regs3 = GraphPartitioner.partitionNodesByRegion(universities);
-                Map<String, List<UniPaths>> parts = GraphPartitioner.partitionEdgesByRegion(regs3, paths);
-                List<UniPaths> allMst = new ArrayList<>();
-                for (String r : regs3.keySet()) {
-                    Set<String> names = regs3.get(r).stream()
-                            .map(Universities::getUniversityName).collect(Collectors.toSet());
+                Map<String, List<Universities>> regions = GraphPartitioner.partitionNodesByRegion(universities);
+                Map<String, List<UniPaths>> parts = GraphPartitioner.partitionEdgesByRegion(regions, paths);
+                List<UniPaths> mstAll = new ArrayList<>();
+                // 1. MST هر ناحیه
+                for (String region : regions.keySet()) {
+                    List<Universities> regionNodes = regions.get(region);
+                    Set<String> names = regionNodes.stream().map(Universities::getUniversityName).collect(Collectors.toSet());
                     List<UniPaths> regionEdges = parts.get("intra").stream()
-                            .filter(p -> names.contains(p.getStartLocation())).collect(Collectors.toList());
-                    allMst.addAll(MSTCalculator.computeMST(regs3.get(r), regionEdges));
+                        .filter(p -> names.contains(p.getStartLocation()) && names.contains(p.getEndLocation()))
+                        .collect(Collectors.toList());
+                    mstAll.addAll(MSTCalculator.computeMST(regionNodes, regionEdges));
                 }
-                // فقط یال‌های بین‌بخشیِ MST خوشه‌ای را اضافه کن:
-                allMst.addAll(
-                        GraphPartitioner.computeInterRegionMST(regs3, parts.get("inter"))
-                );
-                previewEdges = allMst;
+                // 2. MST بین ناحیه‌ای (بین مناطق)
+                mstAll.addAll(GraphPartitioner.computeInterRegionMST(regions, parts.get("inter")));
+                previewEdges = mstAll;
                 previewMode = PreviewMode.GLOBAL;
                 previewPanel.repaint();
             });
@@ -1102,5 +1128,13 @@ public class GraphPanel extends JPanel {
         return new Point((int)x, (int)y);
     }
 
+    // --- utility method for color interpolation ---
+    private static Color interpolateColor(Color c1, Color c2, float t) {
+        t = Math.max(0, Math.min(1, t));
+        int r = (int)(c1.getRed()   + t * (c2.getRed()   - c1.getRed()));
+        int g = (int)(c1.getGreen() + t * (c2.getGreen() - c1.getGreen()));
+        int b = (int)(c1.getBlue()  + t * (c2.getBlue()  - c1.getBlue()));
+        return new Color(r, g, b);
+    }
 
 }
