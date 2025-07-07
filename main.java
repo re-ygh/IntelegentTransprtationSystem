@@ -543,7 +543,8 @@ public class main {
             }
 
             nameField.setText("");
-            updateSystemAfterDataChange();
+            updateComboBoxes.run();
+            graphPanel.repaint();
         });
 
         // اضافه کردن مسیر دستی بین دو دانشگاه (رفع ConcurrentModificationException)
@@ -620,7 +621,8 @@ public class main {
                 startTimeField.setText("");
                 endTimeField.setText("");
                 capacityField.setText("");
-                updateSystemAfterDataChange();
+                updateComboBoxes.run();
+                graphPanel.repaint();
 
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(panel,
@@ -658,7 +660,8 @@ public class main {
                 JOptionPane.showMessageDialog(panel,
                         removedCount[0] + " مسیر حذف شد.",
                         "موفقیت", JOptionPane.INFORMATION_MESSAGE);
-                updateSystemAfterDataChange();
+                updateComboBoxes.run();
+                graphPanel.repaint();
             } else {
                 JOptionPane.showMessageDialog(panel,
                         "مسیری بین این دو دانشگاه یافت نشد.",
@@ -705,7 +708,8 @@ public class main {
                         "دانشگاه '" + uniName + "' و " + removedPaths[0] + " مسیر مربوط به آن حذف شد.",
                         "موفقیت", JOptionPane.INFORMATION_MESSAGE);
 
-                updateSystemAfterDataChange();
+                updateComboBoxes.run();
+                graphPanel.repaint();
             }
         });
 
