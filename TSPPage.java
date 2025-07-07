@@ -1,5 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.geom.*;
 import java.util.List;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -305,22 +306,89 @@ public class TSPPage extends JPanel {
     }
 
     private void showGraphInNewPanel(List<Universities> selected, List<Integer> order) {
-        // ایجاد پنل جدید برای نمایش گراف
+        // ایجاد پنل جدید برای نمایش گراف - مشابه heatmap
         if (graphDialog == null) {
+            // محاسبه اندازه مناسب برای دیالوگ
+            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
+            for (Point pt : main.universityPositions.values()) {
+                minX = Math.min(minX, pt.x);
+                minY = Math.min(minY, pt.y);
+                maxX = Math.max(maxX, pt.x);
+                maxY = Math.max(maxY, pt.y);
+            }
+            int width = maxX - minX + 40;  // 40 = margin
+            int height = maxY - minY + 40;
+            
             graphDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "گراف TSP", false);
-            graphDialog.setSize(800, 600);
+            
+            // ایجاد پنل سفارشی برای نمایش گراف بدون دکمه‌های بالایی
+            JPanel tspGraphPanel = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    Graphics2D g2 = (Graphics2D) g;
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    
+                    // رسم تمام یال‌ها
+                    for (UniPaths path : paths) {
+                        Point start = main.universityPositions.get(path.getStartLocation());
+                        Point end = main.universityPositions.get(path.getEndLocation());
+                        if (start == null || end == null) continue;
+                        
+                        // انتخاب رنگ بر اساس وضعیت هایلایت
+                        if (path.isHighlighted()) {
+                            g2.setColor(Color.RED);
+                            g2.setStroke(new BasicStroke(3)); // ضخیم‌تر برای مسیر TSP
+                        } else {
+                            g2.setColor(Color.BLACK);
+                            g2.setStroke(new BasicStroke(1));
+                        }
+                        
+                        // رسم یال
+                        g2.drawLine(start.x, start.y, end.x, end.y);
+                        
+                        // رسم فلش
+                        drawArrow(g2, start.x, start.y, end.x, end.y);
+                    }
+                    
+                    // رسم گره‌ها (دانشگاه‌ها)
+                    for (Map.Entry<String, Point> entry : main.universityPositions.entrySet()) {
+                        Point p = entry.getValue();
+                        g2.setColor(Color.BLUE);
+                        g2.fillOval(p.x - 10, p.y - 10, 20, 20);
+                        g2.setColor(Color.BLACK);
+                        g2.drawString(entry.getKey(), p.x + 12, p.y - 12);
+                    }
+                }
+                
+                // تابع کمکی برای رسم فلش
+                private void drawArrow(Graphics2D g2, int x1, int y1, int x2, int y2) {
+                    double angle = Math.atan2(y2 - y1, x2 - x1);
+                    int arrowLength = 10;
+                    int arrowAngle = 20;
+                    
+                    int x3 = (int) (x2 - arrowLength * Math.cos(angle - Math.toRadians(arrowAngle)));
+                    int y3 = (int) (y2 - arrowLength * Math.sin(angle - Math.toRadians(arrowAngle)));
+                    int x4 = (int) (x2 - arrowLength * Math.cos(angle + Math.toRadians(arrowAngle)));
+                    int y4 = (int) (y2 - arrowLength * Math.sin(angle + Math.toRadians(arrowAngle)));
+                    
+                    g2.drawLine(x2, y2, x3, y3);
+                    g2.drawLine(x2, y2, x4, y4);
+                }
+            };
+            
+            tspGraphPanel.setPreferredSize(new Dimension(width, height));
+            graphDialog.add(new JScrollPane(tspGraphPanel));
+            graphDialog.pack();
             graphDialog.setLocationRelativeTo(this);
-            
-            // ایجاد یک کپی از GraphPanel برای نمایش در پنل جدید
-            GraphPanel newGraphPanel = new GraphPanel(paths, main.universityPositions, universities);
-            
-            graphDialog.add(newGraphPanel);
         }
         
-        // هایلایت مسیر روی گراف جدید (نه گراف اصلی)
+        // هایلایت مسیر روی گراف جدید
         highlightPathOnNewGraph(selected, order);
         
         graphDialog.setVisible(true);
+        graphDialog.toFront();
     }
 
     private void highlightPathOnNewGraph(List<Universities> selected, List<Integer> order) {
@@ -371,13 +439,17 @@ public class TSPPage extends JPanel {
             System.out.println("  هایلایت بازگشت: " + path.getStartLocation() + " -> " + path.getEndLocation());
         }
 
-        // اعمال تغییرات روی گراف جدید
+        // اعمال تغییرات روی گراف جدید - حالا باید JScrollPane را پیدا کنیم
         if (graphDialog != null && graphDialog.isVisible()) {
             Component[] components = graphDialog.getContentPane().getComponents();
             for (Component comp : components) {
-                if (comp instanceof GraphPanel) {
-                    comp.repaint();
-                    break;
+                if (comp instanceof JScrollPane) {
+                    JScrollPane scrollPane = (JScrollPane) comp;
+                    Component viewportComponent = scrollPane.getViewport().getView();
+                    if (viewportComponent instanceof JPanel) {
+                        viewportComponent.repaint();
+                        break;
+                    }
                 }
             }
         }
