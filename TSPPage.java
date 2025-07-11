@@ -100,7 +100,7 @@ public class TSPPage extends JPanel {
     }
 
     private JPanel createButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
 
         calculateButton = new JButton("محاسبه بهترین مسیر");
         calculateButton.addActionListener(e -> calculateTSP());
@@ -127,6 +127,19 @@ public class TSPPage extends JPanel {
                     "لطفاً بین ۲ تا ۱۰ دانشگاه انتخاب کنید",
                     "خطا", JOptionPane.ERROR_MESSAGE);
             return;
+        }
+
+        // بررسی اتصال دانشگاه‌های انتخاب شده
+        List<Universities> connectedUniversities = getConnectedUniversities(selected);
+        if (connectedUniversities.size() < 2) {
+            JOptionPane.showMessageDialog(this,
+                    "هشدار: دانشگاه‌های انتخاب شده به هم متصل نیستند. ممکن است نتایج ناقص باشد.",
+                    "هشدار", JOptionPane.WARNING_MESSAGE);
+        } else if (connectedUniversities.size() != selected.size()) {
+            JOptionPane.showMessageDialog(this,
+                    "هشدار: " + (selected.size() - connectedUniversities.size()) + 
+                    " دانشگاه از دانشگاه‌های انتخاب شده به بقیه متصل نیستند.",
+                    "هشدار", JOptionPane.WARNING_MESSAGE);
         }
 
         try {
@@ -257,8 +270,84 @@ public class TSPPage extends JPanel {
         // نمایش لاگ در پنل اصلی
         showLogInMainPanel(selected, lastOptimalOrder);
         
-        // نمایش گراف در پنل جدید
+        // نمایش گراف در پنل جدید - بهبود یافته
         showGraphInNewPanel(selected, lastOptimalOrder);
+    }
+
+    /**
+     * متد جدید برای اطمینان از نمایش صحیح گراف TSP
+     */
+    private void ensureGraphDisplay() {
+        if (graphDialog != null && graphDialog.isVisible()) {
+            // اطمینان از اینکه گراف درست نمایش داده می‌شود
+            SwingUtilities.invokeLater(() -> {
+                Component[] components = graphDialog.getContentPane().getComponents();
+                for (Component comp : components) {
+                    if (comp instanceof GraphPanel) {
+                        comp.revalidate();
+                        comp.repaint();
+                        break;
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * متد کمکی برای بررسی و نمایش مسیرهای TSP
+     */
+    private boolean validateAndHighlightTSPPath(List<Universities> selected, List<Integer> order) {
+        if (selected == null || selected.isEmpty() || order == null || order.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "خطا: لیست دانشگاه‌ها یا مسیر بهینه خالی است.",
+                    "خطا", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        // بررسی اینکه آیا تمام دانشگاه‌های انتخاب شده در گراف موجود هستند
+        for (Universities uni : selected) {
+            if (!main.universityPositions.containsKey(uni.getUniversityName())) {
+                JOptionPane.showMessageDialog(this,
+                        "خطا: دانشگاه '" + uni.getUniversityName() + "' در گراف موجود نیست.",
+                        "خطا", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * متد کمکی برای بررسی اتصال دانشگاه‌ها در گراف
+     */
+    private boolean areUniversitiesConnected(String uni1, String uni2) {
+        // بررسی اینکه آیا مسیر مستقیم یا غیرمستقیم بین دو دانشگاه وجود دارد
+        return UniPaths.DijkstraShortestPath(paths, uni1, uni2, false);
+    }
+
+    /**
+     * متد کمکی برای فیلتر کردن دانشگاه‌های متصل
+     */
+    private List<Universities> getConnectedUniversities(List<Universities> selected) {
+        List<Universities> connected = new ArrayList<>();
+        
+        for (int i = 0; i < selected.size(); i++) {
+            boolean isConnected = false;
+            for (int j = 0; j < selected.size(); j++) {
+                if (i != j) {
+                    if (areUniversitiesConnected(selected.get(i).getUniversityName(), 
+                                                selected.get(j).getUniversityName())) {
+                        isConnected = true;
+                        break;
+                    }
+                }
+            }
+            if (isConnected) {
+                connected.add(selected.get(i));
+            }
+        }
+        
+        return connected;
     }
 
     private List<Integer> extractOptimalOrder(String resultText) {
@@ -366,26 +455,52 @@ public class TSPPage extends JPanel {
 
         if (graphDialog == null) {
             graphDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "گراف TSP", false);
-            graphDialog.setSize(800, 700);
+            graphDialog.setSize(1100, 850);
             graphDialog.setLocationRelativeTo(this);
             graphDialog.setLayout(new BorderLayout());
-            GraphPanel newGraphPanel = new GraphPanel(new ArrayList<>(paths), main.universityPositions, universities, false);
+            
+            // استفاده از همان مسیرهای اصلی به جای کپی
+            GraphPanel newGraphPanel = new GraphPanel(paths, main.universityPositions, universities, false);
             graphDialog.add(newGraphPanel);
-            newGraphPanel.repaint();
+            
+            // اضافه کردن دکمه بستن
+            JButton closeButton = new JButton("بستن");
+            closeButton.addActionListener(e -> graphDialog.dispose());
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+            buttonPanel.add(closeButton);
+            graphDialog.add(buttonPanel, BorderLayout.SOUTH);
+            
+            // اطمینان از نمایش صحیح
+            SwingUtilities.invokeLater(() -> {
+                newGraphPanel.revalidate();
+                newGraphPanel.repaint();
+            });
         } else {
             // اگر قبلاً ساخته شده، فقط repaint کن
-            Component[] components = graphDialog.getContentPane().getComponents();
-            for (Component comp : components) {
-                if (comp instanceof GraphPanel) {
-                    comp.repaint();
-                    break;
+            SwingUtilities.invokeLater(() -> {
+                Component[] components = graphDialog.getContentPane().getComponents();
+                for (Component comp : components) {
+                    if (comp instanceof GraphPanel) {
+                        comp.revalidate();
+                        comp.repaint();
+                        break;
+                    }
                 }
-            }
+            });
         }
+        
         graphDialog.setVisible(true);
+        
+        // اطمینان از نمایش صحیح پس از نمایش دیالوگ
+        SwingUtilities.invokeLater(this::ensureGraphDisplay);
     }
 
     private void highlightPathOnNewGraph(List<Universities> selected, List<Integer> order) {
+        // بررسی اعتبار داده‌ها
+        if (!validateAndHighlightTSPPath(selected, order)) {
+            return;
+        }
+
         // پاکسازی تمام هایلایت‌های قبلی
         for (UniPaths path : paths) {
             path.setHighlighted(false);
@@ -396,6 +511,8 @@ public class TSPPage extends JPanel {
         for (UniPaths path : paths) {
             System.out.println("  " + path.getStartLocation() + " -> " + path.getEndLocation());
         }
+
+        int highlightedPaths = 0;
 
         // هایلایت مسیرهای TSP با رنگ قرمز
         for (int i = 0; i < order.size() - 1; i++) {
@@ -410,9 +527,15 @@ public class TSPPage extends JPanel {
             
             System.out.println("مسیر یافت شد: " + pathFound + ", تعداد یال‌ها: " + segment.size());
             
+            if (!pathFound || segment.isEmpty()) {
+                System.out.println("هشدار: مسیر بین " + fromUni.getUniversityName() + " و " + toUni.getUniversityName() + " یافت نشد");
+                continue;
+            }
+            
             // هایلایت تمام یال‌های مسیر
             for (UniPaths path : segment) {
                 path.setHighlighted(true);
+                highlightedPaths++;
                 System.out.println("  هایلایت: " + path.getStartLocation() + " -> " + path.getEndLocation());
             }
         }
@@ -428,13 +551,18 @@ public class TSPPage extends JPanel {
         
         System.out.println("مسیر بازگشت یافت شد: " + returnPathFound + ", تعداد یال‌ها: " + returnSegment.size());
         
-        for (UniPaths path : returnSegment) {
-            path.setHighlighted(true);
-            System.out.println("  هایلایت بازگشت: " + path.getStartLocation() + " -> " + path.getEndLocation());
+        if (returnPathFound && !returnSegment.isEmpty()) {
+            for (UniPaths path : returnSegment) {
+                path.setHighlighted(true);
+                highlightedPaths++;
+                System.out.println("  هایلایت بازگشت: " + path.getStartLocation() + " -> " + path.getEndLocation());
+            }
+        } else {
+            System.out.println("هشدار: مسیر بازگشت یافت نشد");
         }
 
-        // اعمال تغییرات روی گراف جدید
-        if (graphDialog != null && graphDialog.isVisible()) {
+        // اعمال تغییرات روی گراف جدید - بهبود یافته
+        if (graphDialog != null) {
             Component[] components = graphDialog.getContentPane().getComponents();
             for (Component comp : components) {
                 if (comp instanceof GraphPanel) {
@@ -444,8 +572,13 @@ public class TSPPage extends JPanel {
             }
         }
         
-        System.out.println("مسیرهای TSP هایلایت شده: " +
-                paths.stream().filter(UniPaths::isHighlighted).count());
+        System.out.println("مسیرهای TSP هایلایت شده: " + highlightedPaths);
+        
+        if (highlightedPaths == 0) {
+            JOptionPane.showMessageDialog(this,
+                    "هشدار: هیچ مسیری برای هایلایت یافت نشد. ممکن است دانشگاه‌های انتخاب شده به هم متصل نباشند.",
+                    "هشدار", JOptionPane.WARNING_MESSAGE);
+        }
     }
 
     private void highlightPathOnGraph(List<Universities> selected, List<Integer> order) {
@@ -564,7 +697,7 @@ public class TSPPage extends JPanel {
 
         JScrollPane scroll = new JScrollPane(table);
         scroll.getViewport().setBackground(new Color(147, 196, 151));
-        scroll.setPreferredSize(new Dimension(Math.max(400, n*120), Math.max(200, n*35)));
+        scroll.setPreferredSize(new Dimension(900, 600));
 
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "ماتریس هزینه/زمان", true);
         dialog.getContentPane().setBackground(new Color(147, 196, 151));

@@ -23,21 +23,10 @@ public class Reservation implements Comparable<Reservation> {
         this.pathEdges = pathEdges;
     }
 
-    public long getBookingTimestamp() {
-        return bookingTimestamp;
-    }
-
     public String getStudentName() {
         return studentName;
     }
 
-    public String getOrigin() {
-        return origin;
-    }
-
-    public String getDest() {
-        return dest;
-    }
 
     public List<UniPaths> getPathEdges() {
         return pathEdges;

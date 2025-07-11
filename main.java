@@ -29,7 +29,7 @@ public class main {
 
 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(1100, 700);
+        frame.setSize(1400, 900);
         frame.setLocationRelativeTo(null);
 
         tspPage = new TSPPage(graphPanel, universities, paths);

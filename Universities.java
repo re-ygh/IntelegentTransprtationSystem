@@ -29,8 +29,6 @@ public class Universities implements Serializable {
         int minDistance = 80;
 
         Rectangle zone;
-        int centerX = panelWidth / 2;
-        int centerY = panelHeight / 2;
         int topOffset = 80; // جلوگیری از رفتن زیر پنل بالا (مثلاً نوار سبز)
 
         switch (universityLocation) {
@@ -90,29 +88,15 @@ public class Universities implements Serializable {
         return x;
     }
 
-    public void setX(int x) {
-        this.x = x;
-    }
-
     public int getY() {
         return y;
     }
 
-    public void setY(int y) {
-        this.y = y;
-    }
-
-    public void setUniversityName(String universityName) {
-        this.universityName = universityName;
-    }
 
     public String getUniversityLocation() {
         return universityLocation;
     }
 
-    public void setUniversityLocation(String universityLocation) {
-        this.universityLocation = universityLocation;
-    }
 
     @Override
     public String toString() {

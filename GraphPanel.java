@@ -114,7 +114,7 @@ public class GraphPanel extends JPanel {
             }
         });
 
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
         topPanel.setBackground(new Color(117, 166, 121));
         topPanel.add(reachButton);
         topPanel.add(mstButton);
@@ -139,8 +139,8 @@ public class GraphPanel extends JPanel {
                 maxX = Math.max(maxX, pt.x);
                 maxY = Math.max(maxY, pt.y);
             }
-            int width  = maxX - minX + NODE_RADIUS*2 + HEATMAP_MARGIN*2;
-            int height = maxY - minY + NODE_RADIUS*2 + HEATMAP_MARGIN*2;
+            int width  = Math.max(1000, maxX - minX + NODE_RADIUS*2 + HEATMAP_MARGIN*2);
+            int height = Math.max(800, maxY - minY + NODE_RADIUS*2 + HEATMAP_MARGIN*2);
 
             heatmapDialog = new JDialog(
                     (Frame) SwingUtilities.getWindowAncestor(this),

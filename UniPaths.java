@@ -34,31 +34,19 @@ private List<String> reservations = new ArrayList<>();
  // getter / setterها
 
 
- public List<String> getReservations() {
-  return reservations;
- }
 
- public void setReservations(List<String> reservations) {
-  this.reservations = reservations;
- }
 
  public int getStartTime() { return startTime; }
- public void setStartTime(int startTime) { this.startTime = startTime; }
 
  public int getEndTime() { return endTime; }
- public void setEndTime(int endTime) { this.endTime = endTime; }
 
  public int getCost() { return cost; }
- public void setCost(int cost) { this.cost = cost; }
 
  public int getCapacity() { return capacity; }
- public void setCapacity(int capacity) { this.capacity = capacity; }
 
  public String getStartLocation() { return startLocation; }
- public void setStartLocation(String startLocation) { this.startLocation = startLocation; }
 
  public String getEndLocation() { return endLocation; }
- public void setEndLocation(String endLocation) { this.endLocation = endLocation; }
 
  public boolean isRandom() { return isRandom; }
  public void setRandom(boolean random) { isRandom = random; }
