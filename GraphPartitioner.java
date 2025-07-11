@@ -144,9 +144,16 @@ public class GraphPartitioner {
                     }
                     
                     if (bestEdge != null && !connectors.contains(bestEdge)) {
-                        connectors.add(bestEdge);
-                        connectedNodes.add(bestEdge.getStartLocation());
-                        connectedNodes.add(bestEdge.getEndLocation());
+                        String r1 = nodeRegion.get(bestEdge.getStartLocation());
+                        String r2 = nodeRegion.get(bestEdge.getEndLocation());
+                        Integer i1 = idx.get(r1);
+                        Integer i2 = idx.get(r2);
+                        if (i1 != null && i2 != null && !find.apply(i1).equals(find.apply(i2))) {
+                            unite.accept(i1, i2);
+                            connectors.add(bestEdge);
+                            connectedNodes.add(bestEdge.getStartLocation());
+                            connectedNodes.add(bestEdge.getEndLocation());
+                        }
                     }
                 }
             }
