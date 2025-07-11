@@ -1,8 +1,0 @@
-# پوشه تنظیمات IDE
-.idea/
-*.iml
-
-#خروجی build
-out/
-build/
-target/
