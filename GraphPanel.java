@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
  * دکمه‌های نمایشی، پیشنهاد مسیر/رزرو هوشمند،
  * نمایش لیست رزرو با صف اولویت‌دار و حرکت دانشجویان.
  */
+//
 public class GraphPanel extends JPanel {
     private static final int NODE_RADIUS = 10;
     private static final int HEATMAP_MARGIN = 20;  // فاصله حاشیه برای دیالوگ Heatmap

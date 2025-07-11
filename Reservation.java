@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
  * یک ورودی صف رزرو برای حمل‌ونقل دانشگاهی
  * ثبت و پیگیری با صف اولویت‌دار بر اساس زمان رزرو
  */
+//
 public class Reservation implements Comparable<Reservation> {
     private final long bookingTimestamp;      // زمان رزرو
     private String studentName;               // نام دانشجو

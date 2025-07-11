@@ -5,6 +5,7 @@ import java.util.*;
  * این کلاس نمایانگر مسیر (یال) بین دو دانشگاه است
  * شامل اطلاعاتی مثل زمان حرکت، زمان پایان، هزینه، ظرفیت و نام دو دانشگاه متصل شده
  */
+//
 public class UniPaths implements Serializable {
  private int startTime;
  private int endTime;

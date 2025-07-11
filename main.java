@@ -7,6 +7,7 @@ import java.io.*;
 /**
  * کلاس اصلی اجرای برنامه: «سامانه هوشمند حمل و نقل دانشگاهی»
  */
+//
 public class main {
     static List<Universities> universities = new ArrayList<>();
     static List<UniPaths> paths = new ArrayList<>();

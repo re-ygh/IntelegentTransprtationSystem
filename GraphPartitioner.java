@@ -7,6 +7,7 @@ public class GraphPartitioner {
     /**
      * تقسیم گره‌ها بر اساس universityLocation
      */
+    //
     public static Map<String, List<Universities>> partitionNodesByRegion(List<Universities> nodes) {
         Map<String, List<Universities>> regions = new HashMap<>();
         for (Universities u : nodes) {
