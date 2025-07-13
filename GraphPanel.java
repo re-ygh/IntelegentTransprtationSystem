@@ -195,6 +195,7 @@ public class GraphPanel extends JPanel {
                             // interpolate dark red to brown
                             heatColor = interpolateColor(new Color(255,50,50), new Color(139,0,0), (ratio-0.75f)/0.25f);
                         }
+                        g2.setStroke(new BasicStroke(2));
                         g2.setColor(heatColor);
 
                         String u = p.getStartLocation(), v = p.getEndLocation();
@@ -473,9 +474,35 @@ public class GraphPanel extends JPanel {
 
         // --- لیست مسیرها با مدل از نوع UniPaths ---
         DefaultListModel<UniPaths> model = new DefaultListModel<>();
+        // ابتدا همه مسیرها را اضافه می‌کنیم
         for (UniPaths p : paths) {
             model.addElement(p);
         }
+        
+        // Listener برای به‌روزرسانی لیست مسیرها وقتی مبدا یا مقصد تغییر می‌کند
+        ActionListener updatePathList = e -> {
+            String origin = (String) originCombo.getSelectedItem();
+            String dest = (String) destCombo.getSelectedItem();
+            
+            if (origin != null && dest != null && !origin.equals(dest)) {
+                model.clear();
+                for (UniPaths p : paths) {
+                    if (p.getStartLocation().equals(origin) || p.getEndLocation().equals(dest) ||
+                        p.getStartLocation().equals(dest) || p.getEndLocation().equals(origin)) {
+                        model.addElement(p);
+                    }
+                }
+            } else {
+                // اگر مبدا یا مقصد انتخاب نشده، همه مسیرها را نشان بده
+                model.clear();
+                for (UniPaths p : paths) {
+                    model.addElement(p);
+                }
+            }
+        };
+        
+        originCombo.addActionListener(updatePathList);
+        destCombo.addActionListener(updatePathList);
         JList<UniPaths> list = new JList<>(model);
         list.setVisibleRowCount(10);
         list.setCellRenderer(new DefaultListCellRenderer() {
@@ -490,8 +517,8 @@ public class GraphPanel extends JPanel {
                 UniPaths p = (UniPaths) value;
                 String text = String.format(
                         "%s → %s  | هزینه: %d  | ظرفیت: %d  | زمان: %02d–%02d",
-                        p.getStartLocation(),
                         p.getEndLocation(),
+                        p.getStartLocation(),
                         p.getCost(),
                         p.getRemainingCapacity(),
                         p.getStartTime(),
@@ -535,6 +562,16 @@ public class GraphPanel extends JPanel {
                         "خطا", JOptionPane.ERROR_MESSAGE);
                 return;
             }
+            
+            // فیلتر کردن لیست مسیرها بر اساس مبدا و مقصد انتخاب شده
+            model.clear();
+            for (UniPaths p : paths) {
+                if (p.getStartLocation().equals(origin) || p.getEndLocation().equals(dest) ||
+                    p.getStartLocation().equals(dest) || p.getEndLocation().equals(origin)) {
+                    model.addElement(p);
+                }
+            }
+            
             for (UniPaths p : paths) p.setHighlighted(false);
             boolean found = UniPaths.DijkstraShortestPath(paths, origin, dest, false);
             if (!found) {
@@ -770,7 +807,7 @@ public class GraphPanel extends JPanel {
         }
 
         List<Point> pathPts = buildPathPoints(pathEdges);
-        Collections.reverse(pathPts);
+        // دانشجو از مبدا به مقصد حرکت می‌کند (بدون reverse)
 
         AnimatedStudent anim = new AnimatedStudent(
                 pathPts,

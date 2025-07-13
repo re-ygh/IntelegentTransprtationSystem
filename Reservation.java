@@ -42,7 +42,9 @@ public class Reservation implements Comparable<Reservation> {
             return origin + "->" + dest;
         }
         StringBuilder sb = new StringBuilder();
-        sb.append(pathEdges.get(0).getStartLocation());
+        sb.append(origin); // شروع از مبدا واقعی
+        
+        // اضافه کردن تمام نقاط میانی
         for (UniPaths edge : pathEdges) {
             sb.append("->")
                     .append(edge.getEndLocation())
@@ -50,6 +52,7 @@ public class Reservation implements Comparable<Reservation> {
                     .append(edge.getRemainingCapacity())
                     .append(")");
         }
+        
         return sb.toString();
     }
 
