@@ -3,7 +3,7 @@
 <!-- HEADER STYLE: CLASSIC -->
 <div align="center">
 
-<img src="IntelegentTransprtationSystem.png" width="30%" style="position: relative; top: 0; right: 0;" alt="Project Logo"/>
+<img src="[IntelegentTransprtationSystem.png](https://i.postimg.cc/YqbGjpDW/download.png)" width="30%" style="position: relative; top: 0; right: 0;" alt="Project Logo"/>
 
 # INTELEGENTTRANSPRTATIONSYSTEM
 
